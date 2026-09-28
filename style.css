@@ -1,0 +1,854 @@
+:root {
+  --dq-navy-dark: #0c1a3d;
+  --dq-navy: #1b2d6b;
+  --dq-navy-light: #2f4aa0;
+  --dq-gold: #f4d35e;
+  --dq-white: #f5f5f5;
+  --dq-red: #c1272d;
+  --dq-cyan: #17b6e6;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--dq-navy-dark);
+  color: var(--dq-white);
+  font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px calc(84px + var(--safe-bottom));
+  overflow-y: auto;
+}
+.screen.active { display: flex; }
+
+.overlay-screen {
+  z-index: 50;
+  background: #000;
+  justify-content: center;
+  padding: 0;
+}
+
+/* ---------- 見出し・共通パーツ ---------- */
+.dq-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+}
+
+.dq-title {
+  margin: 8px 0 14px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dq-gold);
+  text-shadow: 2px 2px 0 #000;
+  text-align: center;
+}
+#screen-status .dq-title {
+  font-size: 1.6rem;
+  margin-bottom: 2px;
+}
+#screen-bossdoor .dq-title {
+  font-size: 1.6rem;
+}
+#screen-treasure .dq-title {
+  font-size: 1.6rem;
+}
+
+.btn-primary, .btn-secondary {
+  background: linear-gradient(180deg, var(--dq-navy-light), var(--dq-navy));
+  border: 3px solid var(--dq-white);
+  border-radius: 10px;
+  color: var(--dq-white);
+  padding: 14px 32px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 0 #000;
+}
+.btn-primary:active, .btn-secondary:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #000;
+}
+
+/* ---------- オープニング ---------- */
+#screen-opening {
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+}
+.opening-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+}
+.opening-overlay {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  padding: 24px;
+}
+.title-banner {
+  width: min(88vw, 480px);
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6));
+}
+
+.btn-sound-toggle {
+  position: absolute;
+  z-index: 3;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  background: rgba(12, 26, 61, 0.8);
+  border: 2px solid var(--dq-gold);
+  border-radius: 20px;
+  color: var(--dq-white);
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.btn-sound-toggle.is-on {
+  opacity: 0.5;
+}
+
+/* ---------- なまえ入力 ---------- */
+.name-input-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  width: 100%;
+}
+.name-input {
+  width: min(80vw, 320px);
+  background: var(--dq-navy);
+  border: 3px solid var(--dq-gold);
+  border-radius: 10px;
+  color: var(--dq-white);
+  padding: 12px 16px;
+  font-size: 1.1rem;
+  font-family: inherit;
+  text-align: center;
+}
+.name-input::placeholder {
+  color: rgba(245, 245, 245, 0.5);
+}
+.name-input-message {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--dq-red);
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ---------- たからばこ一覧 ---------- */
+.treasure-hint {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 0 4px;
+  color: var(--dq-gold);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+.treasure-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px 10px;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 12px;
+}
+.treasure-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.treasure-icon-img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  filter: drop-shadow(2px 2px 0 #000);
+}
+.treasure-num {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dq-white);
+  text-shadow: 1px 1px 0 #000;
+}
+.treasure-item.is-locked .treasure-icon-img { opacity: 0.55; }
+.treasure-item.is-locked .treasure-num { opacity: 0.5; }
+.treasure-item.is-locked.is-next .treasure-icon-img {
+  opacity: 1;
+  animation: treasure-next-glow 3.2s ease-in-out infinite;
+}
+.treasure-item.is-locked.is-next .treasure-num {
+  opacity: 1;
+  color: var(--dq-gold);
+}
+@keyframes treasure-next-glow {
+  0%, 100% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 4px var(--dq-gold)); }
+  50% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 20px var(--dq-gold)) brightness(1.3); }
+}
+
+/* ---------- キャラクター選択 ---------- */
+.select-cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 24px;
+}
+.select-card {
+  background: linear-gradient(180deg, var(--dq-navy-light), var(--dq-navy));
+  border: 3px solid var(--dq-gold);
+  border-radius: 14px;
+  color: var(--dq-white);
+  padding: 16px;
+  width: 42vw;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.select-card img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+}
+.select-card span {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.select-card.is-selected {
+  border-color: var(--dq-white);
+  box-shadow: 0 0 0 4px var(--dq-gold), 0 0 16px var(--dq-gold);
+}
+.select-confirm-btn {
+  margin-top: 28px;
+}
+.select-confirm-btn:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+.select-confirm-btn:disabled:active {
+  transform: none;
+}
+
+/* ---------- ステータス ---------- */
+.status-panel {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(180deg, var(--dq-navy-light), var(--dq-navy));
+  border: 3px solid var(--dq-white);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.status-character-wrap {
+  position: relative;
+  width: 40%;
+  max-width: 160px;
+  flex-shrink: 0;
+}
+.status-character-image {
+  width: 100%;
+  object-fit: contain;
+  display: block;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* レベルが上がるごとに濃く／広くなるオーラ演出（5レベルごとに1段階、最大4段階） */
+.status-character-image.aura-1 {
+  animation: character-aura-1 6s ease-in-out infinite;
+}
+.status-character-image.aura-2 {
+  animation: character-aura-2 6s ease-in-out infinite;
+}
+.status-character-image.aura-3 {
+  animation: character-aura-3 6s ease-in-out infinite;
+}
+.status-character-image.aura-4 {
+  animation: character-aura-4 4.8s ease-in-out infinite;
+}
+@keyframes character-aura-1 {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--dq-gold)); }
+  50% { filter: drop-shadow(0 0 5px var(--dq-gold)); }
+}
+@keyframes character-aura-2 {
+  0%, 100% { filter: drop-shadow(0 0 4px var(--dq-gold)); }
+  50% { filter: drop-shadow(0 0 8px var(--dq-gold)); }
+}
+@keyframes character-aura-3 {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--dq-gold)) drop-shadow(0 0 11px var(--dq-gold)); }
+  50% { filter: drop-shadow(0 0 9px var(--dq-gold)) drop-shadow(0 0 15px var(--dq-gold)); }
+}
+@keyframes character-aura-4 {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--dq-gold)) drop-shadow(0 0 14px var(--dq-gold)); }
+  50% { filter: drop-shadow(0 0 12px var(--dq-gold)) drop-shadow(0 0 20px var(--dq-gold)); }
+}
+.levelup-star-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.levelup-star {
+  position: absolute;
+  top: 0;
+  opacity: 0;
+  animation: levelup-star-fall 1.6s ease-in forwards;
+  text-shadow: 0 0 6px rgba(244, 211, 94, 0.9);
+}
+@keyframes levelup-star-fall {
+  0% { transform: translateY(-30px) scale(0.4) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateY(180px) scale(1.1) rotate(200deg); opacity: 0; }
+}
+.status-info { flex: 1; }
+.status-player-name {
+  width: 100%;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--dq-white);
+  text-align: center;
+  margin: 0 0 6px;
+  text-shadow: 2px 2px 0 #000;
+  -webkit-touch-callout: none;
+}
+.status-level {
+  width: 182px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--dq-gold);
+  text-align: center;
+  margin: 0 0 12px;
+  text-shadow: 2px 2px 0 #000;
+}
+.status-items { display: flex; width: 182px; row-gap: 2px; column-gap: 14px; flex-wrap: wrap; }
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0px;
+  font-size: 0.8rem;
+}
+.status-item-icon { font-size: 1.8rem; }
+.status-item span { margin-top: -10px; }
+.status-item-icon-wrap { position: relative; }
+.status-item-icon-img { width: 84px; height: 84px; object-fit: contain; }
+.status-item.is-locked { opacity: 0.25; filter: grayscale(1); }
+.status-item.is-locked.is-available {
+  animation: medal-locked-blink 4.4s ease-in-out infinite;
+}
+.status-item.is-locked.is-available .status-item-icon-img {
+  animation: medal-available-glow 4.4s ease-in-out infinite;
+}
+@keyframes medal-locked-blink {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+@keyframes medal-available-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+  50% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.95)) brightness(1.4); }
+}
+.medal-sparkle-layer {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  overflow: visible;
+}
+.medal-sparkle {
+  position: absolute;
+  font-size: 1rem;
+  opacity: 0;
+  animation: crown-sparkle-twinkle 1.8s ease-out forwards;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+.status-item-icon-img.shine-once {
+  animation: medal-shine-once 2.2s ease-in-out;
+}
+@keyframes medal-shine-once {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 8px var(--dq-gold)) brightness(1.4); }
+}
+.status-item-icon-img.slow-glow-once {
+  animation: medal-slow-glow 3.5s ease-in-out;
+}
+@keyframes medal-slow-glow {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 16px var(--dq-gold)) brightness(1.6); }
+}
+.status-clear-banner {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.status-clear-banner[hidden] {
+  display: none;
+}
+.status-key-reveal {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+.status-key-reveal[hidden] {
+  display: none;
+}
+.key-reveal-stack {
+  position: relative;
+  width: 220px;
+}
+.key-reveal-image {
+  position: relative;
+  width: 220px;
+  height: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+.key-reveal-image.drop-in-play {
+  animation: key-drop-fall 12s cubic-bezier(0.22, 0.9, 0.32, 1) both;
+}
+.key-reveal-image.key-glowing {
+  animation: key-idle-glow 2.4s ease-in-out infinite;
+}
+.key-reveal-echo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: auto;
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(3px);
+}
+.key-reveal-echo.drop-in-play {
+  animation: key-drop-fall-echo 12s cubic-bezier(0.22, 0.9, 0.32, 1) both;
+}
+#key-reveal-echo-1.drop-in-play { animation-delay: 0.15s; }
+#key-reveal-echo-2.drop-in-play { animation-delay: 0.3s; }
+@keyframes key-drop-fall-echo {
+  0% { transform: translateY(-420px) rotate(-8deg); opacity: 0; }
+  10% { opacity: 0.35; }
+  92% { opacity: 0.18; }
+  100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+}
+@keyframes key-idle-glow {
+  0%, 100% { filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.65)) brightness(1); }
+  50% { filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.95)) brightness(1.2); }
+}
+.key-reveal-text {
+  max-width: 320px;
+  margin: 0;
+  color: var(--dq-gold);
+  font-weight: 400;
+  text-align: center;
+  font-size: 0.95rem;
+  text-shadow: 1px 1px 0 #000;
+}
+@keyframes key-drop-fall {
+  0% {
+    transform: translateY(-420px) rotate(-8deg);
+    opacity: 0;
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  }
+  8% { opacity: 1; }
+  55% { filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.95)) brightness(1.7); }
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.35)) brightness(1);
+  }
+}
+.status-clear-fade-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 1;
+}
+.status-clear-fade-wrap.fade-in-play {
+  animation: status-clear-fade-in 5s ease-out;
+}
+@keyframes status-clear-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.status-clear-title {
+  margin: 0;
+  color: var(--dq-gold);
+  font-weight: 700;
+  text-align: center;
+  font-size: 1.5rem;
+  text-shadow: 2px 2px 0 #000;
+}
+.status-clear-sub {
+  margin: 0;
+  color: var(--dq-white);
+  font-weight: 400;
+  text-align: center;
+  font-size: 0.8rem;
+}
+.status-bossroom-btn {
+  display: block;
+  margin: 18px auto 0;
+}
+.status-bossroom-btn[hidden] {
+  display: none;
+}
+.status-quest-available {
+  width: 100%;
+  max-width: 420px;
+  margin: 14px 0 0;
+  color: var(--dq-gold);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+.status-quest-available[hidden] {
+  display: none;
+}
+.crown-medal-wrap {
+  position: relative;
+  width: 250px;
+  aspect-ratio: 1200 / 896;
+  margin-top: -14px;
+}
+.crown-medal-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  margin: 0;
+  animation: crown-glow 2.4s ease-in-out infinite;
+}
+@keyframes crown-glow {
+  0%, 100% { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 6px var(--dq-gold)) brightness(1); }
+  50% { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 22px var(--dq-gold)) brightness(1.25); }
+}
+.crown-sparkle-layer {
+  position: absolute;
+  inset: -4%;
+  pointer-events: none;
+  overflow: visible;
+}
+.crown-sparkle {
+  position: absolute;
+  font-size: 1.2rem;
+  opacity: 0;
+  animation: crown-sparkle-twinkle 1.8s ease-out forwards;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+@keyframes crown-sparkle-twinkle {
+  0% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  30% { opacity: 1; transform: scale(1.1) rotate(45deg); }
+  100% { opacity: 0; transform: scale(0.4) rotate(90deg); }
+}
+
+/* デバッグ用（本番公開前に必ず削除すること） */
+.btn-debug-reset {
+  display: block;
+  margin: 14px auto 0;
+  background: #5a1a1a;
+  border: 2px dashed #ff6b6b;
+  border-radius: 8px;
+  color: #ffb3b3;
+  padding: 10px 18px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* ---------- カメラ ---------- */
+.camera-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 3 / 4;
+  border: 3px solid var(--dq-gold);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.camera-frame {
+  position: absolute;
+  inset: 12%;
+  border: 3px dashed rgba(244, 211, 94, 0.85);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.camera-message {
+  margin-top: 14px;
+  min-height: 1.4em;
+  font-weight: 700;
+  text-align: center;
+  color: var(--dq-gold);
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ---------- 動画オーバーレイ（レベルアップ／まおう決戦／まおう討伐 共用） ---------- */
+.overlay-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ---------- まおうの部屋の扉 ---------- */
+.bossdoor-fade-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+  opacity: 0;
+}
+.bossdoor-fade-wrap.fade-in-play {
+  animation: bossdoor-screen-fade-in 4s ease-out forwards;
+}
+@keyframes bossdoor-screen-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.bossdoor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+}
+.bossdoor-image {
+  width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6));
+  border-radius: 10px;
+}
+.bossdoor-explain {
+  margin-top: 16px;
+  text-align: left;
+}
+.bossdoor-explain p {
+  color: var(--dq-gold);
+  text-shadow: 2px 2px 0 #000;
+  font-weight: 700;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.bossdoor-explain .bossdoor-parent-note {
+  color: var(--dq-white);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+#btn-boss-challenge {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ---------- まおうクイズ ---------- */
+.quiz-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+}
+.quiz-content.fade-in-play {
+  animation: quiz-fade-in 2.2s ease-out forwards;
+}
+@keyframes quiz-fade-in {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.quiz-progress {
+  color: var(--dq-gold);
+  font-weight: 700;
+  margin: 8px 0 12px;
+}
+.quiz-bar {
+  width: 100%;
+  max-width: 460px;
+  background: radial-gradient(ellipse at center, rgba(150, 165, 175, 0.55), rgba(15, 22, 32, 0.85));
+  border: 3px solid var(--dq-cyan);
+  border-radius: 999px;
+  box-shadow: 0 0 10px var(--dq-cyan), inset 0 0 12px rgba(255, 255, 255, 0.15);
+}
+.quiz-question-bar {
+  padding: 14px 22px;
+}
+.quiz-question-text {
+  color: var(--dq-white);
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  text-align: center;
+  margin: 0;
+  text-shadow: 1px 1px 2px #000;
+}
+.quiz-boss-image {
+  width: 100%;
+  max-width: 460px;
+  object-fit: contain;
+  margin: 12px 0;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+.quiz-choices {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.quiz-choice-btn {
+  text-align: center;
+  color: var(--dq-white);
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px #000;
+}
+.quiz-choice-btn:disabled {
+  opacity: 0.6;
+}
+
+/* ---------- 回復中 ---------- */
+#screen-recovery {
+  justify-content: center;
+}
+.recovery-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+}
+.recovery-image {
+  width: 100%;
+  max-width: 420px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+}
+.recovery-text {
+  margin: 16px 0 6px;
+  color: var(--dq-gold);
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+.recovery-countdown {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--dq-white);
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 0;
+}
+
+/* ---------- 下部ナビ ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  justify-content: space-around;
+  background: var(--dq-navy-dark);
+  border-top: 3px solid var(--dq-gold);
+  padding: 8px 4px calc(8px + var(--safe-bottom));
+  z-index: 40;
+}
+.bottom-nav.visible { display: flex; }
+.nav-btn {
+  background: none;
+  border: none;
+  color: var(--dq-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 1.4rem;
+  padding: 4px 10px;
+  opacity: 0.6;
+}
+.nav-btn span { font-size: 0.62rem; letter-spacing: 0.04em; }
+.nav-icon-img { width: 34px; height: 34px; object-fit: contain; }
+.nav-btn.active { opacity: 1; color: var(--dq-gold); }
+
+/* ---------- フラッシュ演出（バイブ非対応端末向け） ---------- */
+.flash-pulse {
+  animation: flash-pulse 0.5s ease-out;
+}
+@keyframes flash-pulse {
+  0% { background: rgba(244, 211, 94, 0.9); }
+  100% { background: transparent; }
+}
+
+/* ---------- まおうクイズ 正解／不正解フラッシュ ---------- */
+.quiz-flash-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 300;
+}
+.quiz-flash-overlay.flash-correct {
+  animation: quiz-flash-correct 0.4s ease-out;
+}
+.quiz-flash-overlay.flash-wrong {
+  animation: quiz-flash-wrong 0.45s ease-out;
+}
+@keyframes quiz-flash-correct {
+  0%, 15% { background: rgba(255, 255, 255, 0.85); }
+  30%, 45% { background: transparent; }
+  60%, 75% { background: rgba(255, 255, 255, 0.85); }
+  100% { background: transparent; }
+}
+@keyframes quiz-flash-wrong {
+  0%, 15% { background: rgba(210, 20, 20, 0.75); }
+  30%, 45% { background: transparent; }
+  60%, 75% { background: rgba(210, 20, 20, 0.75); }
+  100% { background: transparent; }
+}

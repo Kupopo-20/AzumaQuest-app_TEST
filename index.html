@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>あずま保育園クエスト</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ==================== オープニング画面 ==================== -->
+<section id="screen-opening" class="screen active">
+  <video id="opening-video" class="opening-video" src="assets/opening.mp4" autoplay muted loop playsinline></video>
+  <button id="btn-sound-on" class="btn-sound-toggle">🔇 音声ON</button>
+  <div class="opening-overlay">
+    <img class="title-banner" src="assets/title-banner.png" alt="あずま保育園クエスト">
+    <button id="btn-start" class="btn-primary">スタート</button>
+  </div>
+</section>
+
+<!-- ==================== なまえ入力画面 ==================== -->
+<section id="screen-name" class="screen">
+  <h1 class="dq-title">おなまえを　にゅうりょくしてね</h1>
+  <div class="name-input-wrap">
+    <input id="name-input" class="name-input" type="text" maxlength="10" placeholder="なまえ">
+    <p id="name-input-message" class="name-input-message"></p>
+    <button id="btn-name-confirm" class="btn-primary">けってい</button>
+  </div>
+</section>
+
+<!-- ==================== キャラクター選択画面 ==================== -->
+<section id="screen-select" class="screen">
+  <h1 class="dq-title">どちらのキャラをせんたくしますか？</h1>
+  <div class="select-cards">
+    <button class="select-card" data-character="braver">
+      <img src="assets/braver.png" alt="ゆうしゃ">
+      <span>ゆうしゃ</span>
+    </button>
+    <button class="select-card" data-character="wizard">
+      <img src="assets/wizard.png" alt="まほうつかい">
+      <span>まほうつかい</span>
+    </button>
+  </div>
+  <button id="btn-select-confirm" class="btn-primary select-confirm-btn" disabled>けってい</button>
+</section>
+
+<!-- ==================== ステータス画面 ==================== -->
+<section id="screen-status" class="screen">
+  <h1 class="dq-title">ステータス</h1>
+  <p class="status-player-name" id="status-player-name-value"></p>
+  <div class="status-panel">
+    <div class="status-character-wrap">
+      <img id="status-character-image" class="status-character-image" src="assets/braver.png" alt="キャラクター" draggable="false">
+      <div id="levelup-star-layer" class="levelup-star-layer"></div>
+    </div>
+    <div class="status-info">
+      <p class="status-level">レベル　<span id="status-level-value">0</span> / 20</p>
+      <div class="status-items">
+        <div id="medal-0" class="status-item is-locked">
+          <div class="status-item-icon-wrap">
+            <img class="status-item-icon-img" src="assets/medal-red.png" alt="勲章（赤）">
+            <div id="medal-sparkle-0" class="medal-sparkle-layer"></div>
+          </div>
+          <span>あか</span>
+        </div>
+        <div id="medal-1" class="status-item is-locked">
+          <div class="status-item-icon-wrap">
+            <img class="status-item-icon-img" src="assets/medal-blue.png" alt="勲章（青）">
+            <div id="medal-sparkle-1" class="medal-sparkle-layer"></div>
+          </div>
+          <span>あお</span>
+        </div>
+        <div id="medal-2" class="status-item is-locked">
+          <div class="status-item-icon-wrap">
+            <img class="status-item-icon-img" src="assets/medal-green.png" alt="勲章（緑）">
+            <div id="medal-sparkle-2" class="medal-sparkle-layer"></div>
+          </div>
+          <span>みどり</span>
+        </div>
+        <div id="medal-3" class="status-item is-locked">
+          <div class="status-item-icon-wrap">
+            <img class="status-item-icon-img" src="assets/medal-pink.png" alt="勲章（ピンク）">
+            <div id="medal-sparkle-3" class="medal-sparkle-layer"></div>
+          </div>
+          <span>ピンク</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p id="status-quest-available-message" class="status-quest-available" hidden></p>
+  <button id="btn-status-enter-bossroom" class="btn-primary status-bossroom-btn" hidden>まおうのへやへ</button>
+
+  <div id="status-key-reveal" class="status-key-reveal" hidden>
+    <div class="key-reveal-stack">
+      <img id="key-reveal-echo-1" class="key-reveal-echo" src="assets/thief-key.png" alt="">
+      <img id="key-reveal-echo-2" class="key-reveal-echo" src="assets/thief-key.png" alt="">
+      <img id="key-reveal-image" class="key-reveal-image" src="assets/thief-key.png" alt="とうぞくのかぎ">
+    </div>
+    <p class="key-reveal-text">「とうぞくのかぎ」をてにいれました。<br>さいしょの　しゅうごうばしょ　にもどって、「とうぞくのたから」をあけてください。</p>
+  </div>
+
+  <div id="status-boss-defeated-banner" class="status-clear-banner" hidden>
+    <div id="status-clear-fade-wrap" class="status-clear-fade-wrap">
+      <div class="crown-medal-wrap">
+        <img class="crown-medal-image" src="assets/medal-yellow.png" alt="まおう勲章">
+        <div id="crown-sparkle-layer" class="crown-sparkle-layer"></div>
+      </div>
+      <p class="status-clear-title">あずま保育園クエスト クリア！！</p>
+    </div>
+    <p class="status-clear-sub">画面を　むらびとＡへ　見せてください。</p>
+    <p class="status-clear-sub">お姫さま救出セレモニーまで　しばらくお待ちください。</p>
+  </div>
+
+  <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
+  <button id="btn-debug-reset-level" class="btn-debug-reset">【デバッグ】レベルをリセット</button>
+  <button id="btn-debug-back-to-opening" class="btn-debug-reset">【デバッグ】スタート画面にもどる</button>
+  <button id="btn-debug-quiz-unlock" class="btn-debug-reset">【デバッグ】Lv20＋メダル4つを付与</button>
+  <button id="btn-debug-quiz-enter-door" class="btn-debug-reset">【デバッグ】まおうの部屋へ直行</button>
+  <button id="btn-debug-quiz-force-win" class="btn-debug-reset">【デバッグ】クイズ強制クリア</button>
+  <button id="btn-debug-quiz-force-fail" class="btn-debug-reset">【デバッグ】クイズ強制失敗（回復画面へ）</button>
+  <button id="btn-debug-quiz-reset" class="btn-debug-reset">【デバッグ】まおうクイズ関連をリセット</button>
+  <!-- ▲▲▲ デバッグ用ここまで ▲▲▲ -->
+</section>
+
+<!-- ==================== たからばこ一覧画面 ==================== -->
+<section id="screen-treasure" class="screen">
+  <h1 class="dq-title">たからばこ</h1>
+  <p id="treasure-hint-message" class="treasure-hint"></p>
+  <div id="treasure-grid" class="treasure-grid"></div>
+</section>
+
+<!-- ==================== カメラ画面 ==================== -->
+<section id="screen-camera" class="screen">
+  <h1 class="dq-title">たからばこのQRコードをよみとろう</h1>
+  <div class="camera-wrap">
+    <video id="camera-video" class="camera-video" playsinline muted></video>
+    <canvas id="camera-canvas" class="camera-canvas" hidden></canvas>
+    <div class="camera-frame"></div>
+  </div>
+  <p id="camera-message" class="camera-message"></p>
+</section>
+
+<!-- ==================== レベルアップ演出（動画オーバーレイ） ==================== -->
+<section id="screen-levelup" class="screen overlay-screen">
+  <video id="levelup-video" class="overlay-video" playsinline></video>
+</section>
+
+<!-- ==================== まおうの部屋の扉 ==================== -->
+<section id="screen-bossdoor" class="screen">
+  <div id="bossdoor-fade-wrap" class="bossdoor-fade-wrap">
+    <h1 class="dq-title">ひみつの隠し通路</h1>
+    <div class="bossdoor-wrap">
+      <img class="bossdoor-image" src="assets/boss-door.png" alt="まおうの部屋の扉">
+      <div id="bossdoor-explain" class="bossdoor-explain">
+        <p class="bossdoor-parent-note">■保護者の方へ<br>説明を読んであげてください。また、保護者の皆様はサポートに回って、なるべくお子様を主体に『まおうクイズ』へチャレンジさせて下さい。</p>
+        <p>さぁ、ついに まおう との最終決戦です！！<br>
+        あずま保育園の思い出を振り返るクイズです！</p>
+        <p>　＜ルール＞<br>
+        　　・８問正解で勝利！！<br>
+        　　・３問失敗した場合、９０秒間のインターバル</p>
+        <p>お姫さまを取り返すまでもう少しです。<br>
+        最後まで諦めずがんばりましょう！！</p>
+        <button id="btn-boss-challenge" class="btn-primary">まおうにいどむ！！</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== まおう決戦の幕開け（動画オーバーレイ） ==================== -->
+<section id="screen-bossintro" class="screen overlay-screen">
+  <video id="bossintro-video" class="overlay-video" playsinline></video>
+</section>
+
+<!-- ==================== まおうクイズ ==================== -->
+<section id="screen-quiz" class="screen">
+  <h1 class="dq-title">まおう さいしゅう けっせん！！</h1>
+  <div id="quiz-content" class="quiz-content">
+    <p class="quiz-progress">せいかい <span id="quiz-correct-count">0</span> / まちがい <span id="quiz-wrong-count">0</span></p>
+    <div class="quiz-bar quiz-question-bar">
+      <p id="quiz-question-text" class="quiz-question-text"></p>
+    </div>
+    <img class="quiz-boss-image" src="assets/boss-confront.png" alt="まおう対峙">
+    <div id="quiz-choices" class="quiz-choices">
+      <button class="quiz-bar quiz-choice-btn" data-choice-index="0"></button>
+      <button class="quiz-bar quiz-choice-btn" data-choice-index="1"></button>
+      <button class="quiz-bar quiz-choice-btn" data-choice-index="2"></button>
+      <button class="quiz-bar quiz-choice-btn" data-choice-index="3"></button>
+    </div>
+  </div>
+  <audio id="quiz-bgm" src="assets/quiz-bgm.mp3" loop preload="auto"></audio>
+</section>
+
+<!-- ==================== 回復中 ==================== -->
+<section id="screen-recovery" class="screen">
+  <div class="recovery-wrap">
+    <img class="recovery-image" src="assets/boss-recovery.png" alt="回復中">
+    <p class="recovery-text">しっぱいしました。<br>さいチャレンジまで、きずをいやしています。</p>
+    <p id="recovery-countdown" class="recovery-countdown">01:30</p>
+  </div>
+
+  <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
+  <button id="btn-debug-recovery-shrink" class="btn-debug-reset">【デバッグ】回復タイマーを5秒に短縮</button>
+  <!-- ▲▲▲ デバッグ用ここまで ▲▲▲ -->
+</section>
+
+<!-- ==================== まおう討伐（動画オーバーレイ） ==================== -->
+<section id="screen-bossvictory" class="screen overlay-screen">
+  <video id="bossvictory-video" class="overlay-video" playsinline></video>
+</section>
+
+<div id="quiz-flash-overlay" class="quiz-flash-overlay"></div>
+
+<!-- ==================== 下部ナビゲーション ==================== -->
+<nav id="bottom-nav" class="bottom-nav">
+  <button class="nav-btn" data-screen="status">📜<span>ステータス</span></button>
+  <button class="nav-btn" data-screen="treasure"><img class="nav-icon-img" src="assets/treasure-open.png" alt="たからばこ"><span>たからばこ</span></button>
+  <button class="nav-btn" data-screen="camera">📷<span>QR</span></button>
+</nav>
+
+<script src="lib/jsQR.min.js"></script>
+<script src="quiz-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
