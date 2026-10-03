@@ -308,20 +308,20 @@ button {
   animation: character-aura-4 4.8s ease-in-out infinite;
 }
 @keyframes character-aura-1 {
-  0%, 100% { filter: drop-shadow(0 0 2px var(--dq-gold)); }
-  50% { filter: drop-shadow(0 0 5px var(--dq-gold)); }
+  0%, 100% { filter: drop-shadow(0 0 3px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 6px var(--aura-color, var(--dq-gold))); }
 }
 @keyframes character-aura-2 {
-  0%, 100% { filter: drop-shadow(0 0 4px var(--dq-gold)); }
-  50% { filter: drop-shadow(0 0 8px var(--dq-gold)); }
+  0%, 100% { filter: drop-shadow(0 0 5px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 9px var(--aura-color, var(--dq-gold))); }
 }
 @keyframes character-aura-3 {
-  0%, 100% { filter: drop-shadow(0 0 6px var(--dq-gold)) drop-shadow(0 0 11px var(--dq-gold)); }
-  50% { filter: drop-shadow(0 0 9px var(--dq-gold)) drop-shadow(0 0 15px var(--dq-gold)); }
+  0%, 100% { filter: drop-shadow(0 0 7px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 13px var(--aura-color, var(--dq-gold))); }
 }
 @keyframes character-aura-4 {
-  0%, 100% { filter: drop-shadow(0 0 8px var(--dq-gold)) drop-shadow(0 0 14px var(--dq-gold)); }
-  50% { filter: drop-shadow(0 0 12px var(--dq-gold)) drop-shadow(0 0 20px var(--dq-gold)); }
+  0%, 100% { filter: drop-shadow(0 0 9px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 16px var(--aura-color, var(--dq-gold))); }
 }
 .levelup-star-layer {
   position: absolute;

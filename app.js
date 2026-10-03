@@ -35,6 +35,19 @@
     braver: "assets/braver.png",
     wizard: "assets/wizard.png",
   };
+  // レベルアップで出るオーラの色。プレイヤーごとにランダムで1色選ばれ、以後固定される。
+  const AURA_COLORS = [
+    "#f5c518", // ゴールド
+    "#ff4d4d", // 赤
+    "#3d9dff", // 青
+    "#3ddc84", // 緑
+    "#ff5fc4", // ピンク
+    "#b06bff", // 紫
+    "#39e0e0", // 水色
+    "#ff9a3d", // オレンジ
+    "#caff4d", // 黄緑
+    "#ffffff", // 白（聖なる光）
+  ];
   const LEVELUP_VIDEO = {
     braver: "assets/levelup-braver.mp4",
     wizard: "assets/levelup-wizard.mp4",
@@ -50,6 +63,7 @@
       levelCount: 0,
       eventLevel: new Array(LEVEL_MAX).fill(false),
       treasureOrder: generatePersonalTreasureOrder(),
+      auraColor: AURA_COLORS[Math.floor(Math.random() * AURA_COLORS.length)],
       eventMedal: new Array(4).fill(false),
       eventLastQuestPass: false,
       eventLastMedal: false,
@@ -275,6 +289,7 @@
     const charKey = state.character || "braver";
     const characterImageEl = document.getElementById("status-character-image");
     characterImageEl.src = CHARACTER_IMAGE[charKey];
+    characterImageEl.style.setProperty("--aura-color", state.auraColor || AURA_COLORS[0]);
     document.getElementById("status-player-name-value").textContent = state.playerName;
     document.getElementById("status-level-value").textContent = state.levelCount;
 
@@ -730,9 +745,9 @@
         return;
       }
       if (state.eventLastQuestPass) {
-        // 一度あけた扉に再度たどりついた場合は、そのままクイズの続きへ案内する
+        // 一度あけた扉に再度たどりついた場合も、吸い込み演出を流してからクイズの続きへ案内する
         pauseScanBriefly();
-        enterBossRoom();
+        playLastQuestTransfer();
         return;
       }
       const eligible = state.levelCount >= LEVEL_MAX && state.eventMedal.every(Boolean);
@@ -744,7 +759,7 @@
       state.eventLastQuestPass = true;
       saveState();
       feedback(200);
-      enterBossRoom();
+      playLastQuestTransfer();
       return;
     }
 
@@ -850,6 +865,17 @@
         bossintroVideo.hidden = true;
         setTimeout(startQuizAttempt, 1000);
       },
+    });
+  }
+
+  const transferVideo = document.getElementById("transfer-video");
+
+  function playLastQuestTransfer() {
+    playOverlayVideo({
+      videoEl: transferVideo,
+      screenName: "transfer",
+      src: "assets/transfer-last-quest.mp4",
+      onFinish: enterBossRoom,
     });
   }
 
