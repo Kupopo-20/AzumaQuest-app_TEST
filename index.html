@@ -55,6 +55,7 @@
     </div>
     <div class="status-info">
       <p class="status-level">レベル　<span id="status-level-value">0</span> / 20</p>
+      <p class="status-quest-label">クエスト</p>
       <div class="status-items">
         <div id="medal-0" class="status-item is-locked">
           <div class="status-item-icon-wrap">
@@ -108,17 +109,16 @@
       <p class="status-clear-title">あずま保育園クエスト クリア！！</p>
     </div>
     <p class="status-clear-sub">画面を　むらびとＡへ　見せてください。</p>
-    <p class="status-clear-sub">お姫さま救出セレモニーまで　しばらくお待ちください。</p>
   </div>
 
   <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
+  <button id="btn-debug-level-plus5" class="btn-debug-reset">【デバッグ】レベルを＋５</button>
   <button id="btn-debug-reset-level" class="btn-debug-reset">【デバッグ】レベルをリセット</button>
   <button id="btn-debug-back-to-opening" class="btn-debug-reset">【デバッグ】スタート画面にもどる</button>
   <button id="btn-debug-quiz-unlock" class="btn-debug-reset">【デバッグ】Lv20＋メダル4つを付与</button>
   <button id="btn-debug-quiz-enter-door" class="btn-debug-reset">【デバッグ】まおうの部屋へ直行</button>
   <button id="btn-debug-quiz-force-win" class="btn-debug-reset">【デバッグ】クイズ強制クリア</button>
   <button id="btn-debug-quiz-force-fail" class="btn-debug-reset">【デバッグ】クイズ強制失敗（回復画面へ）</button>
-  <button id="btn-debug-quiz-reset" class="btn-debug-reset">【デバッグ】まおうクイズ関連をリセット</button>
   <!-- ▲▲▲ デバッグ用ここまで ▲▲▲ -->
 </section>
 
@@ -145,6 +145,12 @@
   <video id="levelup-video" class="overlay-video" playsinline></video>
 </section>
 
+<!-- ==================== 外部リンクから来たときの「すすむ」確認 ==================== -->
+<section id="screen-gate" class="screen gate-screen">
+  <h1 class="dq-title">ひみつの隠し通路</h1>
+  <button id="btn-gate-proceed" class="btn-primary">すすむ</button>
+</section>
+
 <!-- ==================== 隠し通路への吸い込み演出（動画オーバーレイ） ==================== -->
 <section id="screen-transfer" class="screen overlay-screen">
   <video id="transfer-video" class="overlay-video" playsinline></video>
@@ -157,7 +163,7 @@
     <div class="bossdoor-wrap">
       <img class="bossdoor-image" src="assets/boss-door.png" alt="まおうの部屋の扉">
       <div id="bossdoor-explain" class="bossdoor-explain">
-        <p class="bossdoor-parent-note">■保護者の方へ<br>説明を読んであげてください。また、保護者の皆様はサポートに回って、なるべくお子様を主体に『まおうクイズ』へチャレンジさせて下さい。</p>
+        <p class="bossdoor-parent-note">■保護者の皆様へ<br>説明を読んであげてください。なるべくお子様を主体にチャレンジさせて下さい。</p>
         <p>さぁ、ついに まおう との最終決戦です！！<br>
         あずま保育園の思い出を振り返るクイズです！</p>
         <p>　＜ルール＞<br>
@@ -214,6 +220,8 @@
 </section>
 
 <div id="quiz-flash-overlay" class="quiz-flash-overlay"></div>
+
+<button id="btn-overlay-sound" class="btn-sound-toggle btn-overlay-sound" hidden>🔇 タップで音を出す</button>
 
 <!-- ==================== 下部ナビゲーション ==================== -->
 <nav id="bottom-nav" class="bottom-nav">

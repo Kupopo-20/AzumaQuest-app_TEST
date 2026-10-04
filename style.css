@@ -31,14 +31,24 @@ button {
 
 .screen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: none;
   flex-direction: column;
   align-items: center;
   padding: max(12px, env(safe-area-inset-top)) 12px calc(84px + var(--safe-bottom));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .screen.active { display: flex; }
+
+.gate-screen {
+  justify-content: center;
+  gap: 24px;
+  padding-bottom: 12px;
+}
 
 .overlay-screen {
   z-index: 50;
@@ -138,6 +148,13 @@ button {
 .btn-sound-toggle.is-on {
   opacity: 0.5;
 }
+.btn-overlay-sound {
+  position: fixed;
+  z-index: 60;
+}
+.btn-overlay-sound[hidden] {
+  display: none;
+}
 
 /* ---------- なまえ入力 ---------- */
 .name-input-wrap {
@@ -207,6 +224,7 @@ button {
   color: var(--dq-white);
   text-shadow: 1px 1px 0 #000;
 }
+.treasure-item:not(.is-locked) .treasure-num { color: var(--dq-gold); }
 .treasure-item.is-locked .treasure-icon-img { opacity: 0.55; }
 .treasure-item.is-locked .treasure-num { opacity: 0.5; }
 .treasure-item.is-locked.is-next .treasure-icon-img {
@@ -218,8 +236,8 @@ button {
   color: var(--dq-gold);
 }
 @keyframes treasure-next-glow {
-  0%, 100% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 4px var(--dq-gold)); }
-  50% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 20px var(--dq-gold)) brightness(1.3); }
+  0%, 100% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 4px rgba(255, 255, 255, 0.6)); }
+  50% { filter: drop-shadow(2px 2px 0 #000) drop-shadow(0 0 20px rgba(255, 255, 255, 0.95)) brightness(1.3); }
 }
 
 /* ---------- キャラクター選択 ---------- */
@@ -308,20 +326,20 @@ button {
   animation: character-aura-4 4.8s ease-in-out infinite;
 }
 @keyframes character-aura-1 {
-  0%, 100% { filter: drop-shadow(0 0 3px var(--aura-color, var(--dq-gold))); }
-  50% { filter: drop-shadow(0 0 6px var(--aura-color, var(--dq-gold))); }
+  0%, 100% { filter: drop-shadow(0 0 4px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 8px var(--aura-color, var(--dq-gold))); }
 }
 @keyframes character-aura-2 {
-  0%, 100% { filter: drop-shadow(0 0 5px var(--aura-color, var(--dq-gold))); }
-  50% { filter: drop-shadow(0 0 9px var(--aura-color, var(--dq-gold))); }
+  0%, 100% { filter: drop-shadow(0 0 6px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 11px var(--aura-color, var(--dq-gold))); }
 }
 @keyframes character-aura-3 {
-  0%, 100% { filter: drop-shadow(0 0 7px var(--aura-color, var(--dq-gold))); }
-  50% { filter: drop-shadow(0 0 13px var(--aura-color, var(--dq-gold))); }
-}
-@keyframes character-aura-4 {
   0%, 100% { filter: drop-shadow(0 0 9px var(--aura-color, var(--dq-gold))); }
   50% { filter: drop-shadow(0 0 16px var(--aura-color, var(--dq-gold))); }
+}
+@keyframes character-aura-4 {
+  0%, 100% { filter: drop-shadow(0 0 11px var(--aura-color, var(--dq-gold))); }
+  50% { filter: drop-shadow(0 0 20px var(--aura-color, var(--dq-gold))); }
 }
 .levelup-star-layer {
   position: absolute;
@@ -355,11 +373,20 @@ button {
 }
 .status-level {
   width: 182px;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--dq-gold);
   text-align: center;
   margin: 0 0 12px;
+  text-shadow: 2px 2px 0 #000;
+}
+.status-quest-label {
+  width: 182px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dq-gold);
+  text-align: center;
+  margin: 0 0 2px;
   text-shadow: 2px 2px 0 #000;
 }
 .status-items { display: flex; width: 182px; row-gap: 2px; column-gap: 14px; flex-wrap: wrap; }
@@ -376,10 +403,10 @@ button {
 .status-item-icon-img { width: 84px; height: 84px; object-fit: contain; }
 .status-item.is-locked { opacity: 0.25; filter: grayscale(1); }
 .status-item.is-locked.is-available {
-  animation: medal-locked-blink 4.4s ease-in-out infinite;
+  animation: medal-locked-blink 3.5s ease-in-out infinite;
 }
 .status-item.is-locked.is-available .status-item-icon-img {
-  animation: medal-available-glow 4.4s ease-in-out infinite;
+  animation: medal-available-glow 3.5s ease-in-out infinite;
 }
 @keyframes medal-locked-blink {
   0%, 100% { opacity: 0.25; }
@@ -543,9 +570,14 @@ button {
   margin: 14px 0 0;
   color: var(--dq-gold);
   font-weight: 700;
-  font-size: 0.8rem;
-  text-align: center;
+  font-size: 0.9rem;
+  text-align: left;
   text-shadow: 2px 2px 0 #000;
+}
+.status-quest-available .guidance-line {
+  display: block;
+  padding-left: 1em;
+  text-indent: -1em;
 }
 .status-quest-available[hidden] {
   display: none;

@@ -129,6 +129,8 @@
     else {
       stopMedalShineRandomizer();
       stopCrownSparkle();
+      finishThiefKeyDrop();
+      finishStatusClearFadeIn();
     }
     if (name === "treasure") renderTreasureList();
     if (name === "camera") startCamera();
@@ -284,6 +286,12 @@
     void statusClearFadeWrap.offsetWidth; // reflow でアニメーションを再トリガー
     statusClearFadeWrap.classList.add("fade-in-play");
   }
+  // クラスを付けたままだと、画面を切り替えるたびにフェードインが再生されてしまうため、
+  // 終わったとき（または途中で別の画面へ移ったとき）に外す。
+  function finishStatusClearFadeIn() {
+    statusClearFadeWrap.classList.remove("fade-in-play");
+  }
+  statusClearFadeWrap.addEventListener("animationend", finishStatusClearFadeIn);
 
   function renderStatus() {
     const charKey = state.character || "braver";
@@ -306,12 +314,27 @@
       medalItem.classList.toggle("is-available", locked && availableQuestCount > 0);
     }
     const questAvailableMessage = document.getElementById("status-quest-available-message");
-    questAvailableMessage.hidden = collectedMedalCount >= 4;
+    const nextTreasureIndex = getNextRequiredTreasureIndex();
+    const guidanceLines = [];
+    if (state.levelCount < PERSONAL_TREASURE_ORDER_COUNT) {
+      guidanceLines.push(`・${nextTreasureIndex + 1}ばん のたからばこをさがしてください。`);
+    } else {
+      if (state.levelCount < LEVEL_MAX) {
+        guidanceLines.push(
+          state.levelCount < 15 ? "・どの たからばこ をさがしてもOKです。" : "・どのたからばこ をさがしてもOKです。"
+        );
+      }
+      if (availableQuestCount > 0) {
+        guidanceLines.push(
+          `・${availableQuestCount}つ クエスト（モンスター）へチャレンジできます。どのクエストからでも だいじょうぶ です。`
+        );
+      }
+    }
+    questAvailableMessage.hidden = guidanceLines.length === 0;
     if (!questAvailableMessage.hidden) {
-      questAvailableMessage.innerHTML =
-        availableQuestCount > 0
-          ? `クエスト(モンスターへチャレンジ)を　${availableQuestCount}つ　うけれます。<br>どのクエストからチャレンジしてもOKです。`
-          : "レベル５ごとに1つのクエストへチャレンジできます。";
+      questAvailableMessage.innerHTML = guidanceLines
+        .map((line) => `<span class="guidance-line">${line}</span>`)
+        .join("");
     }
     document.getElementById("btn-status-enter-bossroom").hidden = !(state.eventLastQuestPass && !state.quizWon);
     document.getElementById("status-boss-defeated-banner").hidden = !state.quizWon;
@@ -352,18 +375,20 @@
     [img, echo1, echo2].forEach((el) => el.classList.remove("drop-in-play"));
     void img.offsetWidth; // reflow でアニメーションを再トリガー
     [img, echo1, echo2].forEach((el) => el.classList.add("drop-in-play"));
-    // 落下クラスを付けたままだと、画面が display:none になって
-    // 再表示されるたびに「落下」アニメーションが再生されてしまうため、
-    // 終わったら外し、本体は光り続けるクラスに差し替える（残像は消えたまま）。
-    const onAnimationEnd = () => {
-      img.classList.remove("drop-in-play");
-      img.removeEventListener("animationend", onAnimationEnd);
-      img.classList.add("key-glowing");
-      echo1.classList.remove("drop-in-play");
-      echo2.classList.remove("drop-in-play");
-    };
-    img.addEventListener("animationend", onAnimationEnd);
   }
+
+  // 落下クラスを付けたままだと、画面が display:none になって再表示されるたびに
+  // 「落下」アニメーションが再生されてしまう。そのため、終わったとき（または
+  // 落下の途中で別の画面へ移ったとき）に外し、本体は光り続けるクラスへ差し替える。
+  function finishThiefKeyDrop() {
+    const img = document.getElementById("key-reveal-image");
+    if (!img.classList.contains("drop-in-play")) return;
+    img.classList.remove("drop-in-play");
+    img.classList.add("key-glowing");
+    document.getElementById("key-reveal-echo-1").classList.remove("drop-in-play");
+    document.getElementById("key-reveal-echo-2").classList.remove("drop-in-play");
+  }
+  document.getElementById("key-reveal-image").addEventListener("animationend", finishThiefKeyDrop);
 
   // ------------------------------------------------------------------
   // たからばこ一覧の描画（20個ぶんのレベルQRの取得状況）
@@ -396,7 +421,8 @@
       const unlocked = state.eventLevel[i];
       const item = document.getElementById(`treasure-${i}`);
       item.classList.toggle("is-locked", !unlocked);
-      item.classList.toggle("is-next", !unlocked && i === nextIndex);
+      // 最初の5個は指定の1個だけ、6個目以降は未取得のすべてを点滅させる
+      item.classList.toggle("is-next", !unlocked && (nextIndex === null || i === nextIndex));
       document.getElementById(`treasure-icon-${i}`).src = unlocked ? TREASURE_ICON.open : TREASURE_ICON.closed;
     }
     const hintEl = document.getElementById("treasure-hint-message");
@@ -404,7 +430,7 @@
       state.levelCount >= LEVEL_MAX
         ? "すべてのたからばこをみつけました！"
         : nextIndex === null
-        ? "どのたからばこからさがしてもOKです。"
+        ? "どの たからばこ をさがしてもOKです。"
         : `${nextIndex + 1}ばん のたからばこをさがしてください。`;
   }
 
@@ -560,6 +586,21 @@
     renderStatus();
   });
 
+  document.getElementById("btn-debug-level-plus5").addEventListener("click", () => {
+    const candidates = [...state.treasureOrder, ...state.eventLevel.keys()];
+    let added = 0;
+    for (const i of candidates) {
+      if (added >= 5) break;
+      if (!state.eventLevel[i]) {
+        state.eventLevel[i] = true;
+        added++;
+      }
+    }
+    state.levelCount = state.eventLevel.filter(Boolean).length;
+    saveState();
+    renderStatus();
+  });
+
   document.getElementById("btn-debug-back-to-opening").addEventListener("click", () => {
     state = defaultState();
     quizRun = null;
@@ -598,22 +639,6 @@
     state.recoveryEndsAt = Date.now() + RECOVERY_DURATION_MS;
     saveState();
     showScreen("recovery");
-  });
-
-  document.getElementById("btn-debug-quiz-reset").addEventListener("click", () => {
-    state.eventMedal = new Array(4).fill(false);
-    state.eventLastQuestPass = false;
-    state.quizIntroPlayed = false;
-    state.quizWon = false;
-    state.eventLastMedal = false;
-    state.keyRevealed = false;
-    state.recoveryEndsAt = null;
-    quizRun = null;
-    document.getElementById("key-reveal-image").classList.remove("drop-in-play", "key-glowing");
-    document.getElementById("key-reveal-echo-1").classList.remove("drop-in-play");
-    document.getElementById("key-reveal-echo-2").classList.remove("drop-in-play");
-    saveState();
-    renderStatus();
   });
 
   document.getElementById("btn-debug-recovery-shrink").addEventListener("click", () => {
@@ -794,11 +819,21 @@
   // 保険タイムアウトを仕掛ける（万一 ended が発火しない端末向け）。
   // 音声ONでの再生を試み、ブロックされたらミュート再生にフォールバックする。
   // ------------------------------------------------------------------
+  // 外部リンクから開いた直後などタップ操作が無いと、ブラウザは音声つき自動再生を
+  // 禁止する。その場合はミュート再生にして、このボタンのタップで音を出せるようにする。
+  const btnOverlaySound = document.getElementById("btn-overlay-sound");
+  let overlaySoundTarget = null;
+  btnOverlaySound.addEventListener("click", () => {
+    if (overlaySoundTarget) overlaySoundTarget.muted = false;
+    btnOverlaySound.hidden = true;
+  });
+
   function playOverlayVideo({ videoEl, screenName, src, onFinish }) {
     videoEl.src = src;
     showScreen(screenName);
     videoEl.currentTime = 0;
     videoEl.muted = false;
+    btnOverlaySound.hidden = true;
 
     let finished = false;
     let safetyTimeout = null;
@@ -808,6 +843,7 @@
       clearTimeout(safetyTimeout);
       videoEl.removeEventListener("ended", finish);
       videoEl.removeEventListener("error", finish);
+      btnOverlaySound.hidden = true;
       onFinish();
     };
     videoEl.addEventListener("ended", finish);
@@ -824,6 +860,8 @@
 
     videoEl.play().catch(() => {
       videoEl.muted = true;
+      overlaySoundTarget = videoEl;
+      btnOverlaySound.hidden = false;
       videoEl.play().catch(finish);
     });
   }
@@ -1088,9 +1126,26 @@
     // 同じURLをリロード／再共有したときに毎回再実行されないよう、処理前にクエリを消す。
     history.replaceState(null, "", location.pathname + location.hash);
   }
+  // 外部リンクからはタップ操作が無く、動画の音声が自動再生で止められてしまう。
+  // そのため入れる状態のときは「すすむ」ボタンを挟み、そのタップで音つき再生を始める。
+  const lastQuestEnterable =
+    !state.quizWon &&
+    (state.eventLastQuestPass || (state.levelCount >= LEVEL_MAX && state.eventMedal.every(Boolean)));
   if (deepLinkCode && state.character) {
-    showScreen("status");
-    handleQrCode(deepLinkCode);
+    if (deepLinkCode === LAST_QUEST_PASS_CODE && lastQuestEnterable) {
+      showScreen("gate");
+      document.getElementById("btn-gate-proceed").addEventListener(
+        "click",
+        () => {
+          showScreen("status");
+          handleQrCode(deepLinkCode);
+        },
+        { once: true }
+      );
+    } else {
+      showScreen("status");
+      handleQrCode(deepLinkCode);
+    }
   } else {
     showScreen("opening");
   }
