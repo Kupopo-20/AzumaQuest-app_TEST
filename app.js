@@ -1133,15 +1133,7 @@
     (state.eventLastQuestPass || (state.levelCount >= LEVEL_MAX && state.eventMedal.every(Boolean)));
   if (deepLinkCode === LAST_QUEST_PASS_CODE && !lastQuestEnterable) {
     // 条件を満たしていないときはアプリ画面へ移らず、エラー画面を表示する。
-    document.getElementById("linkerror-message").innerHTML = state.quizWon
-      ? "まおうは すでに たおしています。"
-      : "ひみつの隠し通路へ進むには、<br>レベル20 かつ クエスト4つクリアが<br>必要です。";
     showScreen("linkerror");
-    document.getElementById("btn-linkerror-back").addEventListener(
-      "click",
-      () => showScreen(state.character ? "status" : "opening"),
-      { once: true }
-    );
   } else if (deepLinkCode && state.character) {
     if (deepLinkCode === LAST_QUEST_PASS_CODE) {
       showScreen("gate");
