@@ -50,6 +50,15 @@ button {
   padding-bottom: 12px;
 }
 
+.linkerror-message {
+  margin: 0;
+  color: var(--dq-white);
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+
 .overlay-screen {
   z-index: 50;
   background: #000;
