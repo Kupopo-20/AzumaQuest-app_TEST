@@ -50,6 +50,34 @@ button {
   padding-bottom: 12px;
 }
 
+.map-frame-wrap {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  min-height: 0;
+  overflow: hidden;
+  border: 3px solid var(--dq-gold);
+  border-radius: 10px;
+  background: var(--dq-navy);
+}
+/* Google側が上部に出すタイトル帯（地図名・作成者・共有ボタン）を、上へずらして隠す */
+.map-frame {
+  display: block;
+  width: 100%;
+  margin-top: -70px;
+  height: calc(100% + 70px);
+  border: 0;
+}
+
+.inapp-message {
+  margin: 0;
+  color: var(--dq-white);
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+
 .overlay-screen {
   z-index: 50;
   background: #000;
@@ -83,7 +111,8 @@ button {
 #screen-bossdoor .dq-title {
   font-size: 1.6rem;
 }
-#screen-treasure .dq-title {
+#screen-treasure .dq-title,
+#screen-map .dq-title {
   font-size: 1.6rem;
 }
 
@@ -178,6 +207,14 @@ button {
 }
 .name-input::placeholder {
   color: rgba(245, 245, 245, 0.5);
+}
+.name-input-hint {
+  margin: -6px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--dq-white);
+  text-shadow: 1px 1px 0 #000;
 }
 .name-input-message {
   min-height: 1.2em;

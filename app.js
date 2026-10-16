@@ -116,7 +116,13 @@
   function showScreen(name) {
     screens.forEach((el) => el.classList.toggle("active", el.id === `screen-${name}`));
     navButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.screen === name));
-    bottomNav.classList.toggle("visible", ["status", "treasure", "camera"].includes(name));
+    bottomNav.classList.toggle("visible", ["status", "treasure", "map", "camera"].includes(name));
+
+    // 地図は通信量が大きいので、初めて開いたときに読み込む
+    if (name === "map") {
+      const mapFrame = document.getElementById("map-frame");
+      if (!mapFrame.getAttribute("src")) mapFrame.setAttribute("src", mapFrame.dataset.src);
+    }
 
     // 音楽（オープニング動画）は最初の画面にいる間だけ流す
     if (name === "opening") {
@@ -1128,28 +1134,41 @@
   }
   // 外部リンクからはタップ操作が無く、動画の音声が自動再生で止められてしまう。
   // そのため入れる状態のときは「すすむ」ボタンを挟み、そのタップで音つき再生を始める。
-  const lastQuestEnterable =
-    !state.quizWon &&
-    (state.eventLastQuestPass || (state.levelCount >= LEVEL_MAX && state.eventMedal.every(Boolean)));
-  if (deepLinkCode === LAST_QUEST_PASS_CODE && !lastQuestEnterable) {
-    // 条件を満たしていないときはアプリ画面へ移らず、エラー画面を表示する。
-    showScreen("linkerror");
-  } else if (deepLinkCode && state.character) {
-    if (deepLinkCode === LAST_QUEST_PASS_CODE) {
-      showScreen("gate");
-      document.getElementById("btn-gate-proceed").addEventListener(
-        "click",
-        () => {
-          showScreen("status");
-          handleQrCode(deepLinkCode);
-        },
-        { once: true }
-      );
+  function routeInitialScreen() {
+    const lastQuestEnterable =
+      !state.quizWon &&
+      (state.eventLastQuestPass || (state.levelCount >= LEVEL_MAX && state.eventMedal.every(Boolean)));
+    if (deepLinkCode === LAST_QUEST_PASS_CODE && !lastQuestEnterable) {
+      // 条件を満たしていないときはアプリ画面へ移らず、エラー画面を表示する。
+      showScreen("linkerror");
+    } else if (deepLinkCode && state.character) {
+      if (deepLinkCode === LAST_QUEST_PASS_CODE) {
+        showScreen("gate");
+        document.getElementById("btn-gate-proceed").addEventListener(
+          "click",
+          () => {
+            showScreen("status");
+            handleQrCode(deepLinkCode);
+          },
+          { once: true }
+        );
+      } else {
+        showScreen("status");
+        handleQrCode(deepLinkCode);
+      }
     } else {
-      showScreen("status");
-      handleQrCode(deepLinkCode);
+      showScreen("opening");
     }
+  }
+
+  // LINEなどのアプリ内ブラウザは、カメラが使えなかったり、SafariやChromeとプレイデータが
+  // 別扱いになったりする。検出したら、先に「ブラウザで開いてください」の案内を出す。
+  // （誤検出でも進めるように「このまま すすむ」ボタンも用意する。）
+  const IN_APP_BROWSER_RE = /\bLine\/|FBAN|FBAV|Instagram|Twitter|MicroMessenger/i;
+  if (IN_APP_BROWSER_RE.test(navigator.userAgent)) {
+    showScreen("inapp");
+    document.getElementById("btn-inapp-continue").addEventListener("click", routeInitialScreen, { once: true });
   } else {
-    showScreen("opening");
+    routeInitialScreen();
   }
 })();

@@ -23,6 +23,7 @@
   <h1 class="dq-title">おなまえを　にゅうりょくしてね</h1>
   <div class="name-input-wrap">
     <input id="name-input" class="name-input" type="text" maxlength="10" placeholder="なまえ">
+    <p class="name-input-hint">つかえるもじ：ひらがな・カタカナ・ローマ字<br>（10もじまで）</p>
     <p id="name-input-message" class="name-input-message"></p>
     <button id="btn-name-confirm" class="btn-primary">けってい</button>
   </div>
@@ -129,6 +130,14 @@
   <div id="treasure-grid" class="treasure-grid"></div>
 </section>
 
+<!-- ==================== マップ画面（Googleマイマップ） ==================== -->
+<section id="screen-map" class="screen">
+  <h1 class="dq-title">マップ</h1>
+  <div class="map-frame-wrap">
+    <iframe id="map-frame" class="map-frame" title="マップ" data-src="https://www.google.com/maps/d/embed?mid=1fpRy0pIuE-OXgxXDVFR3vS_H1sD92xU" allow="geolocation" loading="lazy"></iframe>
+  </div>
+</section>
+
 <!-- ==================== カメラ画面 ==================== -->
 <section id="screen-camera" class="screen">
   <h1 class="dq-title">たからばこのQRコードをよみとろう</h1>
@@ -149,6 +158,21 @@
 <section id="screen-gate" class="screen gate-screen">
   <h1 class="dq-title">ひみつの隠し通路</h1>
   <button id="btn-gate-proceed" class="btn-primary">すすむ</button>
+</section>
+
+<!-- ==================== アプリ内ブラウザ（LINEなど）で開いたときの案内 ==================== -->
+<section id="screen-inapp" class="screen gate-screen">
+  <h1 class="dq-title">ブラウザで ひらいてね</h1>
+  <p class="inapp-message">
+    このページは、LINEなどの中では<br>
+    カメラが つかえなかったり、<br>
+    データが きえたりすることが あります。<br>
+    <br>
+    メニュー（「…」や共有ボタン）から<br>
+    「Safariで開く」または<br>
+    「Chromeで開く」を えらんでください。
+  </p>
+  <button id="btn-inapp-continue" class="btn-secondary">このまま すすむ</button>
 </section>
 
 <!-- ==================== 外部リンクから来たが条件を満たしていないときのエラー画面 ==================== -->
@@ -232,6 +256,7 @@
 <nav id="bottom-nav" class="bottom-nav">
   <button class="nav-btn" data-screen="status">📜<span>ステータス</span></button>
   <button class="nav-btn" data-screen="treasure"><img class="nav-icon-img" src="assets/treasure-open.png" alt="たからばこ"><span>たからばこ</span></button>
+  <button class="nav-btn" data-screen="map">🗺️<span>マップ</span></button>
   <button class="nav-btn" data-screen="camera">📷<span>QR</span></button>
 </nav>
 
