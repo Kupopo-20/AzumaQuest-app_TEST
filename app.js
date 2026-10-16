@@ -152,6 +152,13 @@
     btn.addEventListener("click", () => showScreen(btn.dataset.screen));
   });
 
+  // 地図の上部の帯を隠しているため、説明パネルの「←」も見えない。代わりに「とじる」ボタンを
+  // 常に重ねておき、押すと地図を読み込み直して説明パネルを閉じる（拡大・位置は最初に戻る）。
+  const mapFrameEl = document.getElementById("map-frame");
+  document.getElementById("btn-map-close").addEventListener("click", () => {
+    mapFrameEl.setAttribute("src", mapFrameEl.dataset.src);
+  });
+
   // ------------------------------------------------------------------
   // オープニング → なまえ入力 → キャラ選択 / ステータス
   // ------------------------------------------------------------------
