@@ -116,7 +116,8 @@
   function showScreen(name) {
     screens.forEach((el) => el.classList.toggle("active", el.id === `screen-${name}`));
     navButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.screen === name));
-    bottomNav.classList.toggle("visible", ["status", "treasure", "map", "camera"].includes(name));
+    bottomNav.classList.toggle("visible", ["status", "treasure", "map", "camera", "gallery"].includes(name));
+    if (name === "gallery") renderGallery();
 
     // 地図は通信量が大きいので、初めて開いたときに読み込む
     if (name === "map") {
@@ -918,6 +919,50 @@
       },
     });
   }
+
+  // ------------------------------------------------------------------
+  // どうが一覧：かいほう（視聴済み）した動画を、あとから1本ずつ見返せる
+  // ------------------------------------------------------------------
+  // かいほう前の動画は、内容が事前に分からないよう一覧にも出さない。
+  const GALLERY_VIDEOS = [
+    { title: "オープニング", src: "assets/Opening.mp4", unlocked: () => true },
+    { title: "まおうとの けっせん", src: "assets/boss-battle-start.mp4", unlocked: () => state.quizIntroPlayed },
+    { title: "ひみつの かくしつうろ", src: "assets/transfer-last-quest.mp4", unlocked: () => state.eventLastQuestPass },
+    { title: "まおうを たおした！", src: "assets/boss-defeated.mp4", unlocked: () => state.quizWon },
+  ];
+  const galleryList = document.getElementById("gallery-list");
+  const replayVideo = document.getElementById("replay-video");
+
+  function renderGallery() {
+    galleryList.textContent = "";
+    GALLERY_VIDEOS.filter((v) => v.unlocked()).forEach((v) => {
+      const btn = document.createElement("button");
+      btn.className = "gallery-item";
+      const label = document.createElement("span");
+      label.textContent = v.title;
+      const stateEl = document.createElement("span");
+      stateEl.className = "gallery-item-state";
+      stateEl.textContent = "▶ みる";
+      btn.append(label, stateEl);
+      btn.addEventListener("click", () => playGalleryVideo(v.src));
+      galleryList.appendChild(btn);
+    });
+  }
+
+  function playGalleryVideo(src) {
+    playOverlayVideo({
+      videoEl: replayVideo,
+      screenName: "replay",
+      src,
+      onFinish: () => showScreen("gallery"),
+    });
+  }
+
+  // 「もどる」：再生を止めて、動画が終わったときと同じ流れで一覧へ戻る
+  document.getElementById("btn-replay-back").addEventListener("click", () => {
+    replayVideo.pause();
+    replayVideo.dispatchEvent(new Event("ended"));
+  });
 
   const transferVideo = document.getElementById("transfer-video");
 

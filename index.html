@@ -130,6 +130,18 @@
   <div id="treasure-grid" class="treasure-grid"></div>
 </section>
 
+<!-- ==================== どうが一覧（かいほうした動画を見返す） ==================== -->
+<section id="screen-gallery" class="screen">
+  <h1 class="dq-title">どうが</h1>
+  <div id="gallery-list" class="gallery-list"></div>
+</section>
+
+<!-- ==================== どうが再生（動画オーバーレイ） ==================== -->
+<section id="screen-replay" class="screen overlay-screen">
+  <video id="replay-video" class="overlay-video" playsinline></video>
+  <button id="btn-replay-back" class="btn-replay-back">もどる</button>
+</section>
+
 <!-- ==================== マップ画面（Googleマイマップ） ==================== -->
 <section id="screen-map" class="screen">
   <h1 class="dq-title">ちず</h1>
@@ -259,6 +271,7 @@
   <button class="nav-btn" data-screen="treasure"><img class="nav-icon-img" src="assets/treasure-open.png" alt="たからばこ"><span>たからばこ</span></button>
   <button class="nav-btn" data-screen="map">🗺️<span>ちず</span></button>
   <button class="nav-btn" data-screen="camera">📷<span>QR</span></button>
+  <button class="nav-btn" data-screen="gallery">🎬<span>どうが</span></button>
 </nav>
 
 <script src="lib/jsQR.min.js"></script>
