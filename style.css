@@ -60,12 +60,10 @@ button {
   border-radius: 10px;
   background: var(--dq-navy);
 }
-/* Google側が上部に出すタイトル帯（地図名・作成者・共有ボタン）を、上へずらして隠す */
 .map-frame {
   display: block;
   width: 100%;
-  margin-top: -70px;
-  height: calc(100% + 70px);
+  height: 100%;
   border: 0;
 }
 
