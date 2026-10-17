@@ -175,6 +175,7 @@
   let myAccuracyCircle = null;
   let geoWatchId = null;
   let recenterOnNextFix = false;
+  let outsideNoticeShown = false;
 
   function toFullWidthDigits(n) {
     return String(n).replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0xfee0));
@@ -329,9 +330,14 @@
         myMarker = null;
         myAccuracyCircle = null;
       }
-      showMapToast("ちずの はんいの そとに いるよ。");
+      // 位置が更新されるたびに出し続けないよう、範囲外に出たときに一度だけ知らせる
+      if (!outsideNoticeShown) {
+        outsideNoticeShown = true;
+        showMapToast("ちずの はんいの そとに いるよ。");
+      }
       return;
     }
+    outsideNoticeShown = false;
     const ll = imageToLatLng(p);
     const accuracyPx = Math.max(pos.coords.accuracy / cfg.metersPerPixel, 0);
     if (!myMarker) {
@@ -367,16 +373,14 @@
       showMapToast("この たんまつでは げんざいちを つかえません。");
       return;
     }
-    recenterOnNextFix = true;
-    btnMapLocate.classList.add("is-on");
+    // 取得中にもう一度押したら、位置情報の取得をやめる
     if (geoWatchId !== null) {
-      // 追跡中にもう一度押したら、いまの現在地へ寄せ直す
-      if (myMarker) {
-        recenterOnNextFix = false;
-        leafletMap.setView(myMarker.getLatLng(), Math.max(leafletMap.getZoom(), mapFitZoom + 1.2), { animate: true });
-      }
+      stopMapLocation();
       return;
     }
+    recenterOnNextFix = true;
+    outsideNoticeShown = false;
+    btnMapLocate.classList.add("is-on");
     geoWatchId = navigator.geolocation.watchPosition(onMapPosition, onMapPositionError, {
       enableHighAccuracy: true,
       maximumAge: 5000,
@@ -390,6 +394,9 @@
       geoWatchId = null;
     }
     recenterOnNextFix = false;
+    outsideNoticeShown = false;
+    clearTimeout(mapToastTimeout);
+    mapToastEl.hidden = true;
     btnMapLocate.classList.remove("is-on");
     if (leafletMap && myMarker) {
       leafletMap.removeLayer(myMarker);
