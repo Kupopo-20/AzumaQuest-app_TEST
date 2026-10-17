@@ -331,23 +331,24 @@
     const nextTreasureIndex = getNextRequiredTreasureIndex();
     const guidanceLines = [];
     if (state.levelCount < PERSONAL_TREASURE_ORDER_COUNT) {
-      guidanceLines.push(`・${nextTreasureIndex + 1}ばん のたからばこをさがしてください。`);
+      guidanceLines.push(`・${nextTreasureIndex + 1}ばん のたからばこをさがそう！`);
     } else {
       if (state.levelCount < LEVEL_MAX) {
-        guidanceLines.push(
-          state.levelCount < 15 ? "・どの たからばこ をさがしてもOKです。" : "・どのたからばこ をさがしてもOKです。"
-        );
+        guidanceLines.push("・どの たからばこ をさがしてもいいよ。");
       }
       if (availableQuestCount > 0) {
-        guidanceLines.push(
-          `・${availableQuestCount}つ クエスト（モンスター）へチャレンジできます。どのクエストからでも だいじょうぶ です。`
+        const fullWidthCount = String(availableQuestCount).replace(/[0-9]/g, (d) =>
+          String.fromCharCode(d.charCodeAt(0) + 0xfee0)
         );
+        guidanceLines.push(`・${fullWidthCount}つクエストへチャレンジできるよ。`);
+        guidanceLines.push("（どれからうけてもいいよ。）");
       }
     }
     questAvailableMessage.hidden = guidanceLines.length === 0;
     if (!questAvailableMessage.hidden) {
+      // 「（」で始まる補足行は、「・」のぶら下げ位置にそろえて表示する
       questAvailableMessage.innerHTML = guidanceLines
-        .map((line) => `<span class="guidance-line">${line}</span>`)
+        .map((line) => `<span class="guidance-line${line.startsWith("（") ? " guidance-sub" : ""}">${line}</span>`)
         .join("");
     }
     document.getElementById("btn-status-enter-bossroom").hidden = !(state.eventLastQuestPass && !state.quizWon);
@@ -444,8 +445,8 @@
       state.levelCount >= LEVEL_MAX
         ? "すべてのたからばこをみつけました！"
         : nextIndex === null
-        ? "どの たからばこ をさがしてもOKです。"
-        : `${nextIndex + 1}ばん のたからばこをさがしてください。`;
+        ? "どの たからばこ をさがしてもいいよ。"
+        : `${nextIndex + 1}ばん のたからばこをさがそう！`;
   }
 
   // まおう勲章（王冠の代わり）の周りにキラキラ粒子を一定間隔で発生させる演出

@@ -676,6 +676,9 @@ button {
   padding-left: 1em;
   text-indent: -1em;
 }
+.status-quest-available .guidance-sub {
+  text-indent: 0;
+}
 .status-quest-available[hidden] {
   display: none;
 }
