@@ -219,14 +219,30 @@
     });
   }
 
+  let mapInfoTimer = null;
+
+  // すでに説明が出ているときに別のマークを押すと、中身が入れ替わるだけで変化に気づきにくい。
+  // そのため、いったん消してから、少しあとに新しい説明を出し直す（出るときは、ふわっと表示）。
   function openMapInfo(image, title, text) {
-    document.getElementById("map-info-image").src = image;
-    document.getElementById("map-info-title").textContent = title;
-    document.getElementById("map-info-text").textContent = text;
-    mapInfoEl.hidden = false;
+    clearTimeout(mapInfoTimer);
+    const show = () => {
+      document.getElementById("map-info-image").src = image;
+      document.getElementById("map-info-title").textContent = title;
+      const textEl = document.getElementById("map-info-text");
+      textEl.textContent = text;
+      textEl.hidden = !text;
+      mapInfoEl.hidden = false;
+    };
+    if (mapInfoEl.hidden) {
+      show();
+    } else {
+      mapInfoEl.hidden = true;
+      mapInfoTimer = setTimeout(show, 180);
+    }
   }
 
   function closeMapInfo() {
+    clearTimeout(mapInfoTimer);
     mapInfoEl.hidden = true;
   }
 
@@ -283,12 +299,44 @@
       });
       mapMarkers.push({ marker, icon: () => questPinIcon(q.monster) });
     });
+    // 集合場所：クエストと同じ大きさのアイコンで、名前だけを説明パネルに出す
+    if (window.MAP_MEETING) {
+      const meeting = window.MAP_MEETING;
+      const meetingIcon = L.divIcon({
+        className: "map-pin-icon",
+        html: `<div class="map-pin map-pin-quest map-pin-meeting"><img class="map-pin-image" src="assets/meeting-point.png" alt=""><span class="map-pin-label">${meeting.name}</span></div>`,
+        iconSize: [96, 74],
+        iconAnchor: [48, 42], // 名前をアイコンの上に出すので、アイコンの中心は上から42px
+      });
+      // 近くのたからばこ（1番）に重なったとき、たからばこのマークが隠れないよう後ろに回す
+      L.marker(imageToLatLng(geoToImage(meeting.lat, meeting.lng)), { icon: meetingIcon, zIndexOffset: -1000 })
+        .addTo(leafletMap)
+        .on("click", () => openMapInfo("assets/meeting-point.png", meeting.name, ""));
+    }
     leafletMap.on("click", closeMapInfo);
 
     // 画面にちょうど全体が入る倍率を、これ以上は縮小できない倍率にする（Googleマップと同じ感覚）
-    mapFitZoom = leafletMap.getBoundsZoom(bounds, false);
-    leafletMap.setMinZoom(mapFitZoom);
+    updateMapFitZoom();
     leafletMap.on("zoom", updateMapPinScale);
+    // ブラウザのバーの出入りや画面の回転で表示の大きさが変わったら、「全体が入る倍率」も計算し直す
+    leafletMap.on("resize", () => {
+      updateMapFitZoom();
+      updateMapPinScale();
+    });
+  }
+
+  function mapImageBounds() {
+    const cfg = window.MAP_IMAGE;
+    return L.latLngBounds([0, 0], [cfg.height, cfg.width]);
+  }
+
+  // いまの表示の大きさで「全体がちょうど入る倍率」を求め、それより縮小できないようにする
+  function updateMapFitZoom() {
+    // getBoundsZoom は「いま設定されている縮小の限界」より小さい値を返せない。
+    // 画面が小さくなったときに全体の倍率まで下げられるよう、計算の前に限界をいったん下げる。
+    leafletMap.options.minZoom = -6;
+    mapFitZoom = leafletMap.getBoundsZoom(mapImageBounds(), false);
+    leafletMap.setMinZoom(mapFitZoom);
   }
 
   // 全体を見ているときはマークを小さく、拡大するほど元の大きさに戻す
@@ -301,8 +349,10 @@
   }
 
   function fitMapToImage() {
-    const cfg = window.MAP_IMAGE;
-    leafletMap.fitBounds(L.latLngBounds([0, 0], [cfg.height, cfg.width]), { animate: false });
+    // 先にいまの表示の大きさを読み直してから、全体が入る倍率で中央に合わせる
+    leafletMap.invalidateSize();
+    updateMapFitZoom();
+    leafletMap.setView(mapImageBounds().getCenter(), mapFitZoom, { animate: false });
     updateMapPinScale();
   }
 
@@ -312,6 +362,7 @@
     const firstTime = !leafletMap;
     if (firstTime) buildMap();
     leafletMap.invalidateSize();
+    updateMapFitZoom();
     mapMarkers.forEach((m) => m.marker.setIcon(m.icon()));
     closeMapInfo();
     if (firstTime) fitMapToImage();
@@ -719,27 +770,45 @@
     setTimeout(() => sparkle.remove(), 1800);
   }
 
-  function spawnMedalSparkleBurst(index) {
+  // 星くずを5秒間出し続け、最後の星くずが消えたら onDone を呼ぶ
+  function spawnMedalSparkleBurst(index, onDone) {
     const layer = document.getElementById(`medal-sparkle-${index}`);
-    if (!layer) return;
+    if (!layer) {
+      onDone();
+      return;
+    }
     spawnOneMedalSparkle(layer);
     let elapsedMs = 0;
     const intervalId = setInterval(() => {
       spawnOneMedalSparkle(layer);
       elapsedMs += 250;
-      if (elapsedMs >= 5000) clearInterval(intervalId);
+      if (elapsedMs >= 5000) {
+        clearInterval(intervalId);
+        setTimeout(onDone, 1800); // 最後の星くずが消えるまで待つ
+      }
     }, 250);
   }
 
   // 手に入れた勲章だけをゆっくり光らせ、他の勲章のランダムな光りは
-  // この演出が終わるまで止めておく（どれを手に入れたか分かりやすくするため）
+  // この演出が終わるまで止めておく（どれを手に入れたか分かりやすくするため）。
+  // 勲章の光と星くずの両方が終わってから、「とうぞくのカギ」の登場へ進む。
   function highlightNewMedal(index) {
-    spawnMedalSparkleBurst(index);
+    let glowDone = false;
+    let sparkleDone = false;
+    const finishIfBothDone = () => {
+      if (!glowDone || !sparkleDone) return;
+      startMedalShineRandomizer();
+      maybeRevealThiefKey();
+    };
+    spawnMedalSparkleBurst(index, () => {
+      sparkleDone = true;
+      finishIfBothDone();
+    });
     const item = document.getElementById(`medal-${index}`);
     const img = item ? item.querySelector(".status-item-icon-img") : null;
     if (!img) {
-      startMedalShineRandomizer();
-      maybeRevealThiefKey();
+      glowDone = true;
+      finishIfBothDone();
       return;
     }
     img.classList.remove("slow-glow-once");
@@ -748,8 +817,8 @@
     const onAnimationEnd = () => {
       img.classList.remove("slow-glow-once");
       img.removeEventListener("animationend", onAnimationEnd);
-      startMedalShineRandomizer();
-      maybeRevealThiefKey();
+      glowDone = true;
+      finishIfBothDone();
     };
     img.addEventListener("animationend", onAnimationEnd);
   }
@@ -869,6 +938,18 @@
     renderStatus();
   });
 
+  // 押すたびに、まだクリアしていないクエスト（勲章）の中からランダムに1つをクリアする。
+  // 実際にクエストをクリアしたときと同じ演出（勲章がゆっくり光る・キラキラ）が出る。
+  document.getElementById("btn-debug-quest-clear").addEventListener("click", () => {
+    const remaining = [0, 1, 2, 3].filter((i) => !state.eventMedal[i]);
+    if (remaining.length === 0) return;
+    const idx = remaining[Math.floor(Math.random() * remaining.length)];
+    state.eventMedal[idx] = true;
+    saveState();
+    pendingMedalSparkleIndex = idx;
+    renderStatus();
+  });
+
   document.getElementById("btn-debug-back-to-opening").addEventListener("click", () => {
     state = defaultState();
     quizRun = null;
@@ -900,13 +981,6 @@
     state.eventLastMedal = true;
     saveState();
     showScreen("status");
-  });
-
-  document.getElementById("btn-debug-quiz-force-fail").addEventListener("click", () => {
-    quizRun = null;
-    state.recoveryEndsAt = Date.now() + RECOVERY_DURATION_MS;
-    saveState();
-    showScreen("recovery");
   });
 
   document.getElementById("btn-debug-recovery-shrink").addEventListener("click", () => {

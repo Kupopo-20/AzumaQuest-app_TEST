@@ -105,9 +105,14 @@ button {
   border-radius: 10px;
   background: var(--dq-navy);
 }
+/* 枠いっぱいに広げる。高さを「％」で指定すると、iPhoneのブラウザで正しく計算されないことがあるので、
+   上下左右を0にして枠に合わせる */
 .map-canvas {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: var(--dq-navy-dark);
 }
 .leaflet-container {
@@ -130,7 +135,7 @@ button {
   font-weight: 700;
   box-shadow: 0 2px 0 #000;
 }
-/* Googleマップの「現在地」ボタンに近い、白い丸ボタン */
+/* Googleマップの「現在地」ボタンに近い、白い丸ボタン。ONのときは青く塗りつぶして、OFFと見分けやすくする */
 .btn-map-locate {
   position: absolute;
   right: 12px;
@@ -149,7 +154,9 @@ button {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 .btn-map-locate.is-on {
-  color: #1a73e8;
+  background: #1a73e8;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.35), 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 .map-toast {
   position: absolute;
@@ -208,6 +215,15 @@ button {
 }
 .map-zoomed-out .map-pin-quest .map-pin-label {
   display: none;
+}
+/* 集合場所：すぐ近くにあるたからばこ（真下）に名前が隠れないよう、名前をアイコンの上に出す */
+.map-pin-meeting {
+  flex-direction: column-reverse;
+  transform-origin: 50% 42px;
+}
+.map-pin-meeting .map-pin-label {
+  margin-top: 0;
+  margin-bottom: 1px;
 }
 .leaflet-container .map-pin-image {
   width: 30px;
@@ -277,9 +293,15 @@ button {
   border: 3px solid var(--dq-gold);
   border-radius: 10px;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+  /* 表示されるたび（display:none から戻るたび）に、下からふわっと出る */
+  animation: map-info-in 0.22s ease-out;
 }
 .map-info[hidden] {
   display: none;
+}
+@keyframes map-info-in {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 .map-info-image {
   flex-shrink: 0;
@@ -300,6 +322,9 @@ button {
   font-size: 0.9rem;
   line-height: 1.6;
   white-space: pre-line;
+}
+.map-info-text[hidden] {
+  display: none;
 }
 .btn-map-info-close {
   position: absolute;
