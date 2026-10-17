@@ -947,7 +947,7 @@ button {
   opacity: 0.6;
 }
 .nav-btn span { font-size: 0.62rem; letter-spacing: 0.04em; }
-.nav-icon-img { width: 34px; height: 34px; object-fit: contain; }
+.nav-icon-img { width: 28px; height: 28px; margin: 2.2px 0; object-fit: contain; }
 .nav-btn.active { opacity: 1; color: var(--dq-gold); }
 
 /* ---------- フラッシュ演出（バイブ非対応端末向け） ---------- */
