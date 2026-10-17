@@ -119,11 +119,8 @@
     bottomNav.classList.toggle("visible", ["status", "treasure", "map", "camera", "gallery"].includes(name));
     if (name === "gallery") renderGallery();
 
-    // 地図は通信量が大きいので、初めて開いたときに読み込む
-    if (name === "map") {
-      const mapFrame = document.getElementById("map-frame");
-      if (!mapFrame.getAttribute("src")) mapFrame.setAttribute("src", mapFrame.dataset.src);
-    }
+    if (name === "map") showMapScreen();
+    else stopMapLocation();
 
     // 音楽（オープニング動画）は最初の画面にいる間だけ流す
     if (name === "opening") {
@@ -153,12 +150,261 @@
     btn.addEventListener("click", () => showScreen(btn.dataset.screen));
   });
 
-  // 地図の上部の帯を隠しているため、説明パネルの「←」も見えない。代わりに「とじる」ボタンを
-  // 常に重ねておき、押すと地図を読み込み直して説明パネルを閉じる（拡大・位置は最初に戻る）。
-  const mapFrameEl = document.getElementById("map-frame");
-  document.getElementById("btn-map-close").addEventListener("click", () => {
-    mapFrameEl.setAttribute("src", mapFrameEl.dataset.src);
+  // ------------------------------------------------------------------
+  // ちず画面：絵の地図（あずまガルド_Map）の上に、たからばこ・クエスト・現在地を表示する。
+  // 取得したたからばこは開いた宝箱＋チェック、勲章をとったクエストは薄い表示＋チェックにする。
+  // 位置は map-data.js の緯度・経度から、同じ場所を結んだ変換式で絵の座標に直して置く。
+  // 操作は Googleマップに近づけてある（ドラッグ、ピンチ、ダブルタップ拡大、慣性、現在地ボタン）。
+  // ------------------------------------------------------------------
+  // クエストのモンスター → 勲章の番号（ステータス画面の並び：あか・あお・みどり・ピンク）
+  const QUEST_INFO = {
+    ガーゴイル: { medal: 0, image: "assets/quest-gargoyle.png" },
+    ピラニアン: { medal: 1, image: "assets/quest-piranian.png" },
+    サーペント: { medal: 2, image: "assets/quest-serpent.png" },
+    アビスバイク: { medal: 3, image: "assets/quest-abyssbike.png" },
+  };
+  const QUEST_DESCRIPTION = "レベル５ごとに１つクエストをうけれるよ。\n（どれからうけてもいいよ）";
+  const mapInfoEl = document.getElementById("map-info");
+  const mapToastEl = document.getElementById("map-toast");
+  const btnMapLocate = document.getElementById("btn-map-locate");
+  let leafletMap = null;
+  let mapFitZoom = 0;
+  let mapToastTimeout = null;
+  const mapMarkers = []; // { marker, icon() }
+  let myMarker = null;
+  let myAccuracyCircle = null;
+  let geoWatchId = null;
+  let recenterOnNextFix = false;
+
+  function toFullWidthDigits(n) {
+    return String(n).replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0xfee0));
+  }
+
+  // 緯度・経度 → 国土地理院 zoom17 の画像座標 → 絵の座標（左上が原点・下向きがy）
+  function geoToImage(lat, lng) {
+    const cfg = window.MAP_IMAGE;
+    const n = Math.pow(2, cfg.geo.zoom);
+    const mx = ((lng + 180) / 360 * n - cfg.geo.originTileX) * 256;
+    const r = (lat * Math.PI) / 180;
+    const my = ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n - cfg.geo.originTileY) * 256;
+    const t = cfg.affine;
+    return { x: t.a * mx + t.b * my + t.c, y: t.d * mx + t.e * my + t.f };
+  }
+
+  // 絵の座標 → Leafletの座標（CRS.Simple は上向きがy）
+  function imageToLatLng(p) {
+    return L.latLng(window.MAP_IMAGE.height - p.y, p.x);
+  }
+
+  function treasurePinIcon(n) {
+    const opened = !!state.eventLevel[n - 1];
+    const src = opened ? TREASURE_ICON.open : TREASURE_ICON.closed;
+    return L.divIcon({
+      className: "map-pin-icon",
+      html: `<div class="map-pin"><img class="map-pin-image" src="${src}" alt=""><span class="map-pin-label">${toFullWidthDigits(n)}</span>${opened ? '<span class="map-pin-check">✓</span>' : ""}</div>`,
+      iconSize: [44, 50],
+      iconAnchor: [22, 15],
+    });
+  }
+
+  function questPinIcon(monster) {
+    const info = QUEST_INFO[monster];
+    const done = !!state.eventMedal[info.medal];
+    return L.divIcon({
+      className: "map-pin-icon",
+      html: `<div class="map-pin map-pin-quest${done ? " is-done" : ""}"><img class="map-pin-image" src="${info.image}" alt=""><span class="map-pin-label">${monster}</span>${done ? '<span class="map-pin-check">✓</span>' : ""}</div>`,
+      iconSize: [96, 74],
+      iconAnchor: [48, 28],
+    });
+  }
+
+  function openMapInfo(image, title, text) {
+    document.getElementById("map-info-image").src = image;
+    document.getElementById("map-info-title").textContent = title;
+    document.getElementById("map-info-text").textContent = text;
+    mapInfoEl.hidden = false;
+  }
+
+  function closeMapInfo() {
+    mapInfoEl.hidden = true;
+  }
+
+  function showMapToast(message) {
+    mapToastEl.textContent = message;
+    mapToastEl.hidden = false;
+    clearTimeout(mapToastTimeout);
+    mapToastTimeout = setTimeout(() => {
+      mapToastEl.hidden = true;
+    }, 3500);
+  }
+
+  function buildMap() {
+    const cfg = window.MAP_IMAGE;
+    const bounds = L.latLngBounds([0, 0], [cfg.height, cfg.width]);
+    leafletMap = L.map("map-canvas", {
+      crs: L.CRS.Simple,
+      zoomControl: false,
+      attributionControl: false,
+      zoomSnap: 0, // ピンチでなめらかに拡大・縮小
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120,
+      minZoom: -6, // 仮の下限。あとで「画面に全体が入る倍率」に置き換える（0のままだと全体が入らない）
+      maxZoom: 1.2,
+      inertia: true,
+      bounceAtZoomLimits: false,
+      maxBoundsViscosity: 1,
+    });
+    L.control.zoom({ position: "bottomleft", zoomInText: "+", zoomOutText: "−" }).addTo(leafletMap);
+    L.imageOverlay(cfg.src, bounds).addTo(leafletMap);
+    leafletMap.setMaxBounds(bounds.pad(0.02));
+
+    window.MAP_TREASURES.forEach((t) => {
+      const marker = L.marker(imageToLatLng(geoToImage(t.lat, t.lng)), { icon: treasurePinIcon(t.n) }).addTo(leafletMap);
+      marker.on("click", () => {
+        const opened = !!state.eventLevel[t.n - 1];
+        openMapInfo(
+          opened ? TREASURE_ICON.open : TREASURE_ICON.closed,
+          `${t.n}ばん のたからばこ`,
+          opened ? "みつけたよ！" : "まだ みつけていないよ。"
+        );
+      });
+      mapMarkers.push({ marker, icon: () => treasurePinIcon(t.n) });
+    });
+    window.MAP_QUESTS.forEach((q) => {
+      const info = QUEST_INFO[q.monster];
+      const marker = L.marker(imageToLatLng(geoToImage(q.lat, q.lng)), {
+        icon: questPinIcon(q.monster),
+        zIndexOffset: 500,
+      }).addTo(leafletMap);
+      marker.on("click", () => {
+        const done = !!state.eventMedal[info.medal];
+        openMapInfo(info.image, `クエスト【${q.monster}】`, done ? "クリアしたよ！" : QUEST_DESCRIPTION);
+      });
+      mapMarkers.push({ marker, icon: () => questPinIcon(q.monster) });
+    });
+    leafletMap.on("click", closeMapInfo);
+
+    // 画面にちょうど全体が入る倍率を、これ以上は縮小できない倍率にする（Googleマップと同じ感覚）
+    mapFitZoom = leafletMap.getBoundsZoom(bounds, false);
+    leafletMap.setMinZoom(mapFitZoom);
+    leafletMap.on("zoom", updateMapPinScale);
+  }
+
+  // 全体を見ているときはマークを小さく、拡大するほど元の大きさに戻す
+  function updateMapPinScale() {
+    const container = leafletMap.getContainer();
+    const z = leafletMap.getZoom();
+    const scale = Math.min(1, 0.65 + (0.35 * (z - mapFitZoom)) / 1.6);
+    container.style.setProperty("--pin-s", scale.toFixed(3));
+    container.classList.toggle("map-zoomed-out", z < mapFitZoom + 0.7);
+  }
+
+  function fitMapToImage() {
+    const cfg = window.MAP_IMAGE;
+    leafletMap.fitBounds(L.latLngBounds([0, 0], [cfg.height, cfg.width]), { animate: false });
+    updateMapPinScale();
+  }
+
+  // 画面を開くたびに、取得状況をマークへ反映する（初回だけ地図を作る）
+  function showMapScreen() {
+    if (typeof L === "undefined" || !window.MAP_IMAGE) return;
+    const firstTime = !leafletMap;
+    if (firstTime) buildMap();
+    leafletMap.invalidateSize();
+    mapMarkers.forEach((m) => m.marker.setIcon(m.icon()));
+    closeMapInfo();
+    if (firstTime) fitMapToImage();
+  }
+
+  // 現在地：ボタンを押すと位置情報の許可を求め、青い点を表示して、その場所へ地図を寄せる
+  function onMapPosition(pos) {
+    const cfg = window.MAP_IMAGE;
+    const p = geoToImage(pos.coords.latitude, pos.coords.longitude);
+    const margin = 120;
+    const inside = p.x > -margin && p.x < cfg.width + margin && p.y > -margin && p.y < cfg.height + margin;
+    if (!inside) {
+      if (myMarker) {
+        leafletMap.removeLayer(myMarker);
+        leafletMap.removeLayer(myAccuracyCircle);
+        myMarker = null;
+        myAccuracyCircle = null;
+      }
+      showMapToast("ちずの はんいの そとに いるよ。");
+      return;
+    }
+    const ll = imageToLatLng(p);
+    const accuracyPx = Math.max(pos.coords.accuracy / cfg.metersPerPixel, 0);
+    if (!myMarker) {
+      myAccuracyCircle = L.circle(ll, {
+        radius: accuracyPx,
+        stroke: false,
+        fillColor: "#4285f4",
+        fillOpacity: 0.16,
+        interactive: false,
+      }).addTo(leafletMap);
+      myMarker = L.marker(ll, {
+        icon: L.divIcon({ className: "map-me-icon", html: '<div class="map-me-dot"></div>', iconSize: [24, 24], iconAnchor: [12, 12] }),
+        zIndexOffset: 1000,
+        interactive: false,
+      }).addTo(leafletMap);
+    } else {
+      myMarker.setLatLng(ll);
+      myAccuracyCircle.setLatLng(ll);
+      myAccuracyCircle.setRadius(accuracyPx);
+    }
+    if (recenterOnNextFix) {
+      recenterOnNextFix = false;
+      leafletMap.setView(ll, Math.max(leafletMap.getZoom(), mapFitZoom + 1.2), { animate: true });
+    }
+  }
+
+  function onMapPositionError(err) {
+    showMapToast(err && err.code === 1 ? "いちじょうほうの きょかが ひつようです。" : "げんざいちを とれませんでした。");
+  }
+
+  function startMapLocation() {
+    if (!navigator.geolocation) {
+      showMapToast("この たんまつでは げんざいちを つかえません。");
+      return;
+    }
+    recenterOnNextFix = true;
+    btnMapLocate.classList.add("is-on");
+    if (geoWatchId !== null) {
+      // 追跡中にもう一度押したら、いまの現在地へ寄せ直す
+      if (myMarker) {
+        recenterOnNextFix = false;
+        leafletMap.setView(myMarker.getLatLng(), Math.max(leafletMap.getZoom(), mapFitZoom + 1.2), { animate: true });
+      }
+      return;
+    }
+    geoWatchId = navigator.geolocation.watchPosition(onMapPosition, onMapPositionError, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 20000,
+    });
+  }
+
+  function stopMapLocation() {
+    if (geoWatchId !== null) {
+      navigator.geolocation.clearWatch(geoWatchId);
+      geoWatchId = null;
+    }
+    recenterOnNextFix = false;
+    btnMapLocate.classList.remove("is-on");
+    if (leafletMap && myMarker) {
+      leafletMap.removeLayer(myMarker);
+      leafletMap.removeLayer(myAccuracyCircle);
+      myMarker = null;
+      myAccuracyCircle = null;
+    }
+  }
+
+  document.getElementById("btn-map-reset").addEventListener("click", () => {
+    closeMapInfo();
+    fitMapToImage();
   });
+  document.getElementById("btn-map-info-close").addEventListener("click", closeMapInfo);
+  btnMapLocate.addEventListener("click", startMapLocation);
 
   // ------------------------------------------------------------------
   // オープニング → なまえ入力 → キャラ選択 / ステータス
@@ -372,7 +618,7 @@
   }
 
   // 4色の勲章をすべて集めた直後（まだまおうは倒していない）、まおうの部屋の
-  // 先にある「とうぞくのかぎ」を一度だけ演出付きで出現させる。
+  // 先にある「とうぞくのカギ」を一度だけ演出付きで出現させる。
   function maybeRevealThiefKey() {
     if (state.eventMedal.every(Boolean) && !state.keyRevealed && !state.quizWon) {
       state.keyRevealed = true;
@@ -474,7 +720,7 @@
     const intervalId = setInterval(() => {
       spawnOneMedalSparkle(layer);
       elapsedMs += 250;
-      if (elapsedMs >= 2500) clearInterval(intervalId);
+      if (elapsedMs >= 5000) clearInterval(intervalId);
     }, 250);
   }
 
@@ -1100,10 +1346,21 @@
   });
 
   const quizFlashOverlay = document.getElementById("quiz-flash-overlay");
+  const quizBossImage = document.querySelector(".quiz-boss-image");
+  // 正解：まおうの画像だけを2回白く光らせる（まおうにダメージを与える演出）
+  // 不正解：画面全体を2回赤く光らせる
   function flashQuizResult(isCorrect) {
-    quizFlashOverlay.classList.remove("flash-correct", "flash-wrong");
-    void quizFlashOverlay.offsetWidth; // reflow でアニメーションを再トリガー
-    quizFlashOverlay.classList.add(isCorrect ? "flash-correct" : "flash-wrong");
+    if (isCorrect) {
+      quizBossImage.classList.remove("flash-damage");
+      void quizBossImage.offsetWidth; // reflow でアニメーションを再トリガー
+      quizBossImage.classList.add("flash-damage");
+      // クラスを付けたままだと画面の再表示のたびに再生されてしまうので、終わったら外す
+      quizBossImage.addEventListener("animationend", () => quizBossImage.classList.remove("flash-damage"), { once: true });
+      return;
+    }
+    quizFlashOverlay.classList.remove("flash-wrong");
+    void quizFlashOverlay.offsetWidth;
+    quizFlashOverlay.classList.add("flash-wrong");
   }
 
   function handleQuizAnswer(chosenIndex) {

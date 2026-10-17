@@ -105,20 +105,22 @@ button {
   border-radius: 10px;
   background: var(--dq-navy);
 }
-/* Google側が上部に出すタイトル帯（地図名・作成者・共有ボタン）を、上へずらして隠す。
-   帯の中にある説明パネルの「←」も隠れるため、代わりに「とじる」ボタンを重ねる。 */
-.map-frame {
-  display: block;
+.map-canvas {
   width: 100%;
-  margin-top: -70px;
-  height: calc(100% + 70px);
-  border: 0;
+  height: 100%;
+  background: var(--dq-navy-dark);
 }
-.btn-map-close {
+.leaflet-container {
+  font-family: inherit;
+  background: var(--dq-navy-dark);
+  -webkit-tap-highlight-color: transparent;
+}
+/* Leafletの部品（地図・ボタン類）はz-indexが最大1000までなので、重ねる部品はそれより上にする */
+.btn-map-reset {
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 2;
+  z-index: 1100;
   padding: 8px 14px;
   background: var(--dq-navy-dark);
   border: 2px solid var(--dq-gold);
@@ -127,6 +129,190 @@ button {
   font-size: 0.9rem;
   font-weight: 700;
   box-shadow: 0 2px 0 #000;
+}
+/* Googleマップの「現在地」ボタンに近い、白い丸ボタン */
+.btn-map-locate {
+  position: absolute;
+  right: 12px;
+  bottom: 28px;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  color: #5f6368;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.btn-map-locate.is-on {
+  color: #1a73e8;
+}
+.map-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  z-index: 1100;
+  max-width: 88%;
+  margin: 0;
+  padding: 8px 14px;
+  transform: translateX(-50%);
+  background: rgba(32, 33, 36, 0.92);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+.map-toast[hidden] {
+  display: none;
+}
+/* ズームボタンはGoogleマップの見た目（白・丸みのある四角）に近づける */
+.leaflet-bar {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  color: #5f6368;
+  font-size: 22px;
+}
+.leaflet-touch .leaflet-bottom.leaflet-left {
+  margin-bottom: 18px;
+}
+
+/* マーク：Googleマイマップと同じく、アイコンの下に黒い文字（白い縁取り）で番号を表示する */
+.map-pin-icon {
+  background: none;
+  border: none;
+}
+.map-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  /* 縮小して全体を見ているときは、マーク同士が重ならないよう小さくする（拡大すると元の大きさ） */
+  transform: scale(var(--pin-s, 1));
+  transform-origin: 50% 15px;
+}
+.map-pin-quest {
+  transform-origin: 50% 28px;
+}
+.map-zoomed-out .map-pin-quest .map-pin-label {
+  display: none;
+}
+.leaflet-container .map-pin-image {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+}
+/* クエストのアイコンは縦横の比率がそれぞれ違うので、同じ大きさの枠(69x56)の中央に収める */
+.leaflet-container .map-pin-quest .map-pin-image {
+  width: 69px;
+  height: 56px;
+}
+.map-pin-label {
+  margin-top: 1px;
+  color: #202124;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 3px #fff;
+}
+.map-pin-quest.is-done .map-pin-image {
+  opacity: 0.5;
+}
+.map-pin-check {
+  position: absolute;
+  top: -3px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background: #3ddc84;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+}
+/* 現在地：Googleマップと同じ、白縁の青い点（まわりに精度の円） */
+.map-me-icon {
+  background: none;
+  border: none;
+}
+.map-me-dot {
+  width: 18px;
+  height: 18px;
+  background: #4285f4;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+.map-info {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-height: 60%;
+  overflow-y: auto;
+  padding: 12px 40px 12px 12px;
+  background: var(--dq-navy-dark);
+  border: 3px solid var(--dq-gold);
+  border-radius: 10px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+.map-info[hidden] {
+  display: none;
+}
+.map-info-image {
+  flex-shrink: 0;
+  width: 104px;
+  height: 88px;
+  object-fit: contain;
+}
+.map-info-title {
+  margin: 0 0 6px;
+  color: var(--dq-gold);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+}
+.map-info-text {
+  margin: 0;
+  color: var(--dq-white);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+.btn-map-info-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: 2px solid var(--dq-white);
+  border-radius: 50%;
+  color: var(--dq-white);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .inapp-message {
@@ -606,7 +792,7 @@ button {
   max-width: 320px;
   margin: 0;
   color: var(--dq-gold);
-  font-weight: 400;
+  font-weight: 700;
   text-align: center;
   font-size: 0.95rem;
   text-shadow: 1px 1px 0 #000;
@@ -966,17 +1152,20 @@ button {
   pointer-events: none;
   z-index: 300;
 }
-.quiz-flash-overlay.flash-correct {
-  animation: quiz-flash-correct 0.4s ease-out;
-}
 .quiz-flash-overlay.flash-wrong {
   animation: quiz-flash-wrong 0.45s ease-out;
 }
-@keyframes quiz-flash-correct {
-  0%, 15% { background: rgba(255, 255, 255, 0.85); }
-  30%, 45% { background: transparent; }
-  60%, 75% { background: rgba(255, 255, 255, 0.85); }
-  100% { background: transparent; }
+/* 正解：まおうの画像だけを2回、白くうっすら光らせる（まおうにダメージを与える演出）。
+   contrast(0.14) brightness(1.75) は「白75％＋元の絵25％」になるので、絵がうっすら透けて見える。
+   フィルターの並びをそろえて、滑らかにつなぐ。 */
+.quiz-boss-image.flash-damage {
+  animation: quiz-boss-damage 0.4s ease-out;
+}
+@keyframes quiz-boss-damage {
+  0%, 15% { filter: contrast(0.14) brightness(1.75) drop-shadow(0 0 14px #fff); }
+  30%, 45% { filter: contrast(1) brightness(1) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)); }
+  60%, 75% { filter: contrast(0.14) brightness(1.75) drop-shadow(0 0 14px #fff); }
+  100% { filter: contrast(1) brightness(1) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)); }
 }
 @keyframes quiz-flash-wrong {
   0%, 15% { background: rgba(210, 20, 20, 0.75); }

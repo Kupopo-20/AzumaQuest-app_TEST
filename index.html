@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>あずま保育園クエスト</title>
+<link rel="stylesheet" href="lib/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -96,9 +97,9 @@
     <div class="key-reveal-stack">
       <img id="key-reveal-echo-1" class="key-reveal-echo" src="assets/thief-key.png" alt="">
       <img id="key-reveal-echo-2" class="key-reveal-echo" src="assets/thief-key.png" alt="">
-      <img id="key-reveal-image" class="key-reveal-image" src="assets/thief-key.png" alt="とうぞくのかぎ">
+      <img id="key-reveal-image" class="key-reveal-image" src="assets/thief-key.png" alt="とうぞくのカギ">
     </div>
-    <p class="key-reveal-text">「とうぞくのかぎ」をてにいれました。<br>さいしょの　しゅうごうばしょ　にもどって、「とうぞくのたから」をあけてください。</p>
+    <p class="key-reveal-text">「とうぞくのカギ」をてにいれました。<br>しゅうごうばしょ　にもどって、<br>「とうぞくのたから」をあけてみよう。</p>
   </div>
 
   <div id="status-boss-defeated-banner" class="status-clear-banner" hidden>
@@ -142,12 +143,24 @@
   <button id="btn-replay-back" class="btn-replay-back">もどる</button>
 </section>
 
-<!-- ==================== マップ画面（Googleマイマップ） ==================== -->
+<!-- ==================== ちず画面（絵の地図に、たからばこ・クエスト・現在地を表示） ==================== -->
 <section id="screen-map" class="screen">
   <h1 class="dq-title">ちず</h1>
   <div class="map-frame-wrap">
-    <iframe id="map-frame" class="map-frame" title="ちず" data-src="https://www.google.com/maps/d/embed?mid=1fpRy0pIuE-OXgxXDVFR3vS_H1sD92xU" allow="geolocation" loading="lazy"></iframe>
-    <button id="btn-map-close" class="btn-map-close">リセット</button>
+    <div id="map-canvas" class="map-canvas"></div>
+    <button id="btn-map-reset" class="btn-map-reset">リセット</button>
+    <button id="btn-map-locate" class="btn-map-locate" aria-label="げんざいち">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <p id="map-toast" class="map-toast" hidden></p>
+    <div id="map-info" class="map-info" hidden>
+      <img id="map-info-image" class="map-info-image" src="" alt="">
+      <div class="map-info-body">
+        <p id="map-info-title" class="map-info-title"></p>
+        <p id="map-info-text" class="map-info-text"></p>
+      </div>
+      <button id="btn-map-info-close" class="btn-map-info-close" aria-label="とじる">✕</button>
+    </div>
   </div>
 </section>
 
@@ -275,6 +288,8 @@
 </nav>
 
 <script src="lib/jsQR.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script src="map-data.js"></script>
 <script src="quiz-data.js"></script>
 <script src="app.js"></script>
 </body>
