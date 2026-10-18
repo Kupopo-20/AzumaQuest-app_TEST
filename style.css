@@ -668,6 +668,15 @@ button {
   0%, 100% { filter: drop-shadow(0 0 11px var(--aura-color, var(--dq-gold))); }
   50% { filter: drop-shadow(0 0 20px var(--aura-color, var(--dq-gold))); }
 }
+/* レベルアップ直後：キャラクターをオーラの色で2回光らせる（2.5秒×2＝5秒。星のキラキラと合わせる）。
+   光り方は勲章（medal-slow-glow）と同じで、色だけオーラの色。aura-1〜4より後ろに書いて、そちらに勝たせる */
+.status-character-image.levelup-glow {
+  animation: character-levelup-glow 2.5s ease-in-out 2;
+}
+@keyframes character-levelup-glow {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 16px var(--aura-color, var(--dq-gold))) brightness(1.6); }
+}
 .levelup-star-layer {
   position: absolute;
   inset: 0;
@@ -678,7 +687,7 @@ button {
   position: absolute;
   top: 0;
   opacity: 0;
-  animation: levelup-star-fall 1.6s ease-in forwards;
+  animation: levelup-star-fall 2.6s ease-in forwards;
   text-shadow: 0 0 6px rgba(244, 211, 94, 0.9);
 }
 @keyframes levelup-star-fall {

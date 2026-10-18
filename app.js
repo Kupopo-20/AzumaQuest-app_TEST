@@ -135,6 +135,7 @@
       stopCrownSparkle();
       finishThiefKeyDrop();
       finishStatusClearFadeIn();
+      finishLevelUpGlow();
     }
     if (name === "treasure") renderTreasureList();
     if (name === "camera") startCamera();
@@ -898,20 +899,41 @@
     const layer = document.getElementById("levelup-star-layer");
     if (!layer) return;
     layer.innerHTML = "";
-    const starCount = 14;
+    // 星が舞い降り始める時間を約2.4秒にばらけさせ、ゆっくり落ちる（2.6秒）星が
+    // 落ち終わるまで合わせて約5秒続ける
+    const starCount = 22;
+    const spreadSeconds = 2.4;
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement("span");
       star.className = "levelup-star";
       star.textContent = STAR_CHARS[Math.floor(Math.random() * STAR_CHARS.length)];
       star.style.left = `${Math.random() * 100}%`;
       star.style.fontSize = `${1 + Math.random() * 0.9}rem`;
-      star.style.animationDelay = `${Math.random() * 0.7}s`;
+      star.style.animationDelay = `${Math.random() * spreadSeconds}s`;
       layer.appendChild(star);
     }
     setTimeout(() => {
       layer.innerHTML = "";
-    }, 2500);
+    }, 5500);
+
+    playLevelUpGlow();
   }
+
+  // レベルアップ直後に、キャラクターをオーラの色で2回光らせる（クエストクリアの勲章と同じ光り方）。
+  // 光らせている間は、いつものオーラのゆらぎと動きが重ならないよう、クラスを入れ替える。
+  // 終わったら（または別の画面へ移ったら）外す。付けたままだと、画面を切り替えるたびに再生されてしまう。
+  const statusCharacterImage = document.getElementById("status-character-image");
+  function playLevelUpGlow() {
+    statusCharacterImage.classList.remove("levelup-glow");
+    void statusCharacterImage.offsetWidth; // reflow でアニメーションを再トリガー
+    statusCharacterImage.classList.add("levelup-glow");
+  }
+  function finishLevelUpGlow() {
+    statusCharacterImage.classList.remove("levelup-glow");
+  }
+  statusCharacterImage.addEventListener("animationend", (ev) => {
+    if (ev.animationName === "character-levelup-glow") finishLevelUpGlow();
+  });
 
   // ------------------------------------------------------------------
   // デバッグ用（本番公開前に必ず削除すること）
@@ -1265,8 +1287,13 @@
   // かいほう前の動画は、内容が事前に分からないよう一覧にも出さない。
   const GALLERY_VIDEOS = [
     { title: "オープニング", src: "assets/Opening.mp4", unlocked: () => true },
-    { title: "まおうとの けっせん", src: "assets/boss-battle-start.mp4", unlocked: () => state.quizIntroPlayed },
+    // クエストの討伐動画：その勲章（0:あか 1:あお 2:みどり 3:ピンク）を手に入れると見返せる
+    { title: "ガーゴイルを たおした！", src: "assets/quest-slay-gargoyle.mp4", unlocked: () => !!state.eventMedal[0] },
+    { title: "ピラニアンを たおした！", src: "assets/quest-slay-piranian.mp4", unlocked: () => !!state.eventMedal[1] },
+    { title: "サーペントを たおした！", src: "assets/quest-slay-serpent.mp4", unlocked: () => !!state.eventMedal[2] },
+    { title: "アビスバイクを たおした！", src: "assets/quest-slay-abyssbike.mp4", unlocked: () => !!state.eventMedal[3] },
     { title: "ひみつの かくしつうろ", src: "assets/transfer-last-quest.mp4", unlocked: () => state.eventLastQuestPass },
+    { title: "まおうとの けっせん", src: "assets/boss-battle-start.mp4", unlocked: () => state.quizIntroPlayed },
     { title: "まおうを たおした！", src: "assets/boss-defeated.mp4", unlocked: () => state.quizWon },
   ];
   const galleryList = document.getElementById("gallery-list");
