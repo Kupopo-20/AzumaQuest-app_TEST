@@ -1096,12 +1096,11 @@
         return;
       }
       pauseScanBriefly();
+      // 同じQRを二度使えないよう、動画を流す前に取得済みにして保存しておく
       state.eventMedal[midx] = true;
       saveState();
       feedback(200);
-      showCameraMessage("メダルを　てにいれた！");
-      pendingMedalSparkleIndex = midx;
-      setTimeout(() => showScreen("status"), 1200);
+      playQuestSlay(midx);
       return;
     }
 
@@ -1170,7 +1169,14 @@
     btnOverlaySound.hidden = true;
   });
 
-  function playOverlayVideo({ videoEl, screenName, src, onFinish }) {
+  // 右上の「スキップ」：押すと、動画が最後まで流れたときと同じ流れで次へ進む
+  const btnOverlaySkip = document.getElementById("btn-overlay-skip");
+  let overlaySkipHandler = null;
+  btnOverlaySkip.addEventListener("click", () => {
+    if (overlaySkipHandler) overlaySkipHandler();
+  });
+
+  function playOverlayVideo({ videoEl, screenName, src, onFinish, skippable = true }) {
     videoEl.src = src;
     showScreen(screenName);
     videoEl.currentTime = 0;
@@ -1185,9 +1191,14 @@
       clearTimeout(safetyTimeout);
       videoEl.removeEventListener("ended", finish);
       videoEl.removeEventListener("error", finish);
+      videoEl.pause(); // スキップしたときに、音が残らないよう止める
       btnOverlaySound.hidden = true;
+      btnOverlaySkip.hidden = true;
+      overlaySkipHandler = null;
       onFinish();
     };
+    overlaySkipHandler = finish;
+    btnOverlaySkip.hidden = !skippable;
     videoEl.addEventListener("ended", finish);
     videoEl.addEventListener("error", finish);
     videoEl.addEventListener(
@@ -1282,6 +1293,7 @@
       videoEl: replayVideo,
       screenName: "replay",
       src,
+      skippable: false, // 見返し用は、左上の「もどる」で戻れる
       onFinish: () => showScreen("gallery"),
     });
   }
@@ -1291,6 +1303,28 @@
     replayVideo.pause();
     replayVideo.dispatchEvent(new Event("ended"));
   });
+
+  // クエスト討伐の動画。勲章の番号（0:あか 1:あお 2:みどり 3:ピンク）→ モンスターの動画
+  const QUEST_SLAY_VIDEO = [
+    "assets/quest-slay-gargoyle.mp4", // あか：ガーゴイル
+    "assets/quest-slay-piranian.mp4", // あお：ピラニアン
+    "assets/quest-slay-serpent.mp4", // みどり：サーペント
+    "assets/quest-slay-abyssbike.mp4", // ピンク：アビスバイク
+  ];
+  const questSlayVideo = document.getElementById("questslay-video");
+
+  // 動画が終わったらステータス画面に移り、手に入れた勲章が光りながら表示される
+  function playQuestSlay(medalIndex) {
+    playOverlayVideo({
+      videoEl: questSlayVideo,
+      screenName: "questslay",
+      src: QUEST_SLAY_VIDEO[medalIndex],
+      onFinish: () => {
+        pendingMedalSparkleIndex = medalIndex;
+        showScreen("status");
+      },
+    });
+  }
 
   const transferVideo = document.getElementById("transfer-video");
 

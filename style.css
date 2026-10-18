@@ -448,9 +448,28 @@ button {
 .btn-sound-toggle.is-on {
   opacity: 0.5;
 }
+/* 動画の右上に出る小さな「スキップ」。音ボタンはその下に出す */
+.btn-overlay-skip {
+  position: fixed;
+  z-index: 60;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  padding: 5px 12px;
+  background: rgba(12, 26, 61, 0.7);
+  border: 1.5px solid rgba(245, 245, 245, 0.75);
+  border-radius: 14px;
+  color: var(--dq-white);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.btn-overlay-skip[hidden] {
+  display: none;
+}
 .btn-overlay-sound {
   position: fixed;
   z-index: 60;
+  top: calc(max(12px, env(safe-area-inset-top)) + 38px);
 }
 .btn-overlay-sound[hidden] {
   display: none;
@@ -744,8 +763,9 @@ button {
   0%, 100% { filter: none; }
   50% { filter: drop-shadow(0 0 8px var(--dq-gold)) brightness(1.4); }
 }
+/* 勲章を手に入れたとき：3.5秒の光を2回（合計7秒）。星くず（約6.8秒）とおおよそ合わせる */
 .status-item-icon-img.slow-glow-once {
-  animation: medal-slow-glow 3.5s ease-in-out;
+  animation: medal-slow-glow 3.5s ease-in-out 2;
 }
 @keyframes medal-slow-glow {
   0%, 100% { filter: none; }
