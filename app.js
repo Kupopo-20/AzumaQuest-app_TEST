@@ -1183,13 +1183,7 @@
   // 音声ONでの再生を試み、ブロックされたらミュート再生にフォールバックする。
   // ------------------------------------------------------------------
   // 外部リンクから開いた直後などタップ操作が無いと、ブラウザは音声つき自動再生を
-  // 禁止する。その場合はミュート再生にして、このボタンのタップで音を出せるようにする。
-  const btnOverlaySound = document.getElementById("btn-overlay-sound");
-  let overlaySoundTarget = null;
-  btnOverlaySound.addEventListener("click", () => {
-    if (overlaySoundTarget) overlaySoundTarget.muted = false;
-    btnOverlaySound.hidden = true;
-  });
+  // 禁止する。その場合は音ボタンは出さず、そのままミュート再生にする。
 
   // 右上の「スキップ」：押すと、動画が最後まで流れたときと同じ流れで次へ進む
   const btnOverlaySkip = document.getElementById("btn-overlay-skip");
@@ -1203,7 +1197,6 @@
     showScreen(screenName);
     videoEl.currentTime = 0;
     videoEl.muted = false;
-    btnOverlaySound.hidden = true;
 
     let finished = false;
     let safetyTimeout = null;
@@ -1214,7 +1207,6 @@
       videoEl.removeEventListener("ended", finish);
       videoEl.removeEventListener("error", finish);
       videoEl.pause(); // スキップしたときに、音が残らないよう止める
-      btnOverlaySound.hidden = true;
       btnOverlaySkip.hidden = true;
       overlaySkipHandler = null;
       onFinish();
@@ -1233,12 +1225,19 @@
       { once: true }
     );
 
-    videoEl.play().catch(() => {
-      videoEl.muted = true;
-      overlaySoundTarget = videoEl;
-      btnOverlaySound.hidden = false;
-      videoEl.play().catch(finish);
-    });
+    // 再生開始が遅れて、スキップ後に始まってしまうと音だけが流れ続けるため、
+    // 終わったあとに再生が始まったら止める
+    const stopIfFinished = () => {
+      if (finished) videoEl.pause();
+    };
+    videoEl
+      .play()
+      .then(stopIfFinished)
+      .catch(() => {
+        if (finished) return;
+        videoEl.muted = true;
+        videoEl.play().then(stopIfFinished).catch(finish);
+      });
   }
 
   // ------------------------------------------------------------------

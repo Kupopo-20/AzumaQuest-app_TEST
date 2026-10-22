@@ -448,7 +448,7 @@ button {
 .btn-sound-toggle.is-on {
   opacity: 0.5;
 }
-/* 動画の右上に出る小さな「スキップ」。音ボタンはその下に出す */
+/* 動画の右上に出る小さな「スキップ」 */
 .btn-overlay-skip {
   position: fixed;
   z-index: 60;
@@ -464,14 +464,6 @@ button {
   letter-spacing: 0.05em;
 }
 .btn-overlay-skip[hidden] {
-  display: none;
-}
-.btn-overlay-sound {
-  position: fixed;
-  z-index: 60;
-  top: calc(max(12px, env(safe-area-inset-top)) + 38px);
-}
-.btn-overlay-sound[hidden] {
   display: none;
 }
 
