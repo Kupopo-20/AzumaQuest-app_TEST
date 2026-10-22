@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex">
+<title>ざひょうそくてい（かんりよう）</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<link rel="stylesheet" href="locate.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>ざひょうそくてい（かんりよう）</h1>
+  <span id="gps-status" class="gps">GPS：まだ使っていません</span>
+</header>
+
+<div id="map-wrap" class="map-wrap">
+  <div id="map" class="map"></div>
+  <button id="btn-map-reset" class="map-btn map-btn-reset">ぜんたい</button>
+  <label class="map-toggle"><input id="toggle-ref" type="checkbox" checked>アプリの いまの位置</label>
+  <button id="btn-locate" class="map-btn map-btn-locate" aria-label="げんざいち">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<main class="panel">
+
+  <section class="current">
+    <div class="current-row">
+      <button id="btn-prev" class="nav-btn" aria-label="まえへ">◀</button>
+      <div class="current-text">
+        <p id="current-name" class="current-name">-</p>
+        <p id="current-sub" class="current-sub">-</p>
+      </div>
+      <button id="btn-next" class="nav-btn" aria-label="つぎへ">▶</button>
+    </div>
+
+    <div id="idle-box">
+      <button id="btn-record" class="btn-record">ここを 記録する（<span id="sec-label">20</span>秒）</button>
+      <button id="btn-delete" class="btn-sub" hidden>この記録を消す</button>
+      <p class="hint">記録したい場所に立って、スマホを動かさずに押してください。20秒ほど測って、平均を取ります。</p>
+    </div>
+
+    <div id="measure-box" hidden>
+      <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
+      <p id="measure-text" class="measure-text">-</p>
+      <div class="btn-row">
+        <button id="btn-finish" class="btn-main">いま 確定する</button>
+        <button id="btn-cancel" class="btn-sub">やめる</button>
+      </div>
+    </div>
+
+    <div id="confirm-box" class="confirm" hidden>
+      <p id="confirm-text" class="confirm-text">-</p>
+      <div class="btn-row">
+        <button id="btn-save" class="btn-main">このまま 保存</button>
+        <button id="btn-retry" class="btn-sub">やりなおす</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="list-section">
+    <h2>きろくの じょうきょう <span id="progress-count" class="count"></span></h2>
+    <div id="target-list" class="target-list"></div>
+  </section>
+
+  <section class="export-section">
+    <button id="btn-export-toggle" class="btn-sub wide">書き出し（CSV・map-data.js）をひらく</button>
+    <div id="export-box" hidden>
+      <div class="btn-row">
+        <button id="btn-copy-csv" class="btn-main">CSVをコピー</button>
+        <button id="btn-download-csv" class="btn-main">CSVを保存</button>
+      </div>
+      <div class="btn-row">
+        <button id="btn-copy-js" class="btn-main">map-data.js用をコピー</button>
+      </div>
+      <textarea id="export-text" class="export-text" readonly rows="8"></textarea>
+      <button id="btn-clear-all" class="btn-danger wide">すべての記録を消す</button>
+    </div>
+  </section>
+
+</main>
+
+<p id="toast" class="toast" hidden></p>
+
+<script src="lib/leaflet.js"></script>
+<script src="map-data.js"></script>
+<script src="locate.js"></script>
+</body>
+</html>
