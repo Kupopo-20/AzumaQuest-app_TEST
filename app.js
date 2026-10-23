@@ -7,6 +7,7 @@
   const LEVEL_CODE_RE = /^Azuma_event_level(\d{2})$/;
   const MEDAL_CODE_RE = /^Azuma_event_Medal(\d{2})$/;
   const LAST_QUEST_PASS_CODE = "Azuma_event_LastQuestPass";
+  const ENDING_CODE = "Azuma_event_Ending";
   const RECOVERY_DURATION_MS = 90 * 1000;
   const MEDAL_UNLOCK_LEVEL_STEP = 5; // レベル5ごとに勲章クエストを1つ受けられるようになる
 
@@ -70,6 +71,7 @@
       keyRevealed: false,
       quizIntroPlayed: false,
       quizWon: false,
+      eventEnding: false,
       recoveryEndsAt: null,
     };
   }
@@ -938,18 +940,16 @@
   // ------------------------------------------------------------------
   // デバッグ用（本番公開前に必ず削除すること）
   // ------------------------------------------------------------------
-  document.getElementById("btn-debug-reset-level").addEventListener("click", () => {
-    state.levelCount = 0;
-    state.eventLevel = new Array(LEVEL_MAX).fill(false);
-    saveState();
-    renderStatus();
+  // QR「Azuma_event_Ending」を読み込んだときと同じ処理（まおう討伐後のみ・1回だけ）を通す
+  document.getElementById("btn-debug-ending").addEventListener("click", () => {
+    handleQrCode(ENDING_CODE);
   });
 
-  document.getElementById("btn-debug-level-plus5").addEventListener("click", () => {
+  document.getElementById("btn-debug-level-plus1").addEventListener("click", () => {
     const candidates = [...state.treasureOrder, ...state.eventLevel.keys()];
     let added = 0;
     for (const i of candidates) {
-      if (added >= 5) break;
+      if (added >= 1) break;
       if (!state.eventLevel[i]) {
         state.eventLevel[i] = true;
         added++;
@@ -983,18 +983,9 @@
     showScreen("opening");
   });
 
-  document.getElementById("btn-debug-quiz-unlock").addEventListener("click", () => {
-    state.levelCount = LEVEL_MAX;
-    state.eventLevel = new Array(LEVEL_MAX).fill(true);
-    state.eventMedal = new Array(4).fill(true);
-    saveState();
-    renderStatus();
-  });
-
+  // QR「Azuma_event_LastQuestPass」を読み込んだときと同じ処理（条件を満たしていなければ入れない）を通す
   document.getElementById("btn-debug-quiz-enter-door").addEventListener("click", () => {
-    state.eventLastQuestPass = true;
-    saveState();
-    enterBossRoom();
+    handleQrCode(LAST_QUEST_PASS_CODE);
   });
 
   document.getElementById("btn-debug-quiz-force-win").addEventListener("click", () => {
@@ -1151,6 +1142,24 @@
       return;
     }
 
+    if (text === ENDING_CODE) {
+      if (!state.quizWon) {
+        // まおうを倒すまでは使えない
+        showCameraMessage("じょうけん を みたしてないよ。");
+        return;
+      }
+      if (state.eventEnding) {
+        showCameraMessage("このQRコードは　もう　つかったよ！");
+        return;
+      }
+      pauseScanBriefly();
+      state.eventEnding = true;
+      saveState();
+      feedback(200);
+      playEnding();
+      return;
+    }
+
     showCameraMessage("これは　あずま保育園クエストの　QRコードでは　ないよ。");
   }
 
@@ -1294,6 +1303,7 @@
     { title: "ひみつの かくしつうろ", src: "assets/transfer-last-quest.mp4", unlocked: () => state.eventLastQuestPass },
     { title: "まおうとの けっせん", src: "assets/boss-battle-start.mp4", unlocked: () => state.quizIntroPlayed },
     { title: "まおうを たおした！", src: "assets/boss-defeated.mp4", unlocked: () => state.quizWon },
+    { title: "おひめさまからの ありがとう", src: "assets/ending-thanks.mp4", unlocked: () => state.eventEnding },
   ];
   const galleryList = document.getElementById("gallery-list");
   const replayVideo = document.getElementById("replay-video");
@@ -1360,6 +1370,17 @@
       screenName: "transfer",
       src: "assets/transfer-last-quest.mp4",
       onFinish: enterBossRoom,
+    });
+  }
+
+  const endingVideo = document.getElementById("ending-video");
+
+  function playEnding() {
+    playOverlayVideo({
+      videoEl: endingVideo,
+      screenName: "ending",
+      src: "assets/ending-thanks.mp4",
+      onFinish: () => showScreen("status"),
     });
   }
 
