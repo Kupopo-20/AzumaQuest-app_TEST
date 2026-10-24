@@ -1,6 +1,20 @@
 (() => {
   "use strict";
 
+  // 動画・音楽は Cloudflare R2 から配信する（URLは assets/ 以下と同じ構成）。
+  // 読み込めなかったときは、アプリと同じ場所の assets/ から再生する。
+  const MEDIA_BASE = "https://pub-a26835c4a8e243ceaad959bc528d4ee2.r2.dev/";
+  function media(path) {
+    return MEDIA_BASE + path;
+  }
+  // 動画・音声の読み込みに失敗したら、一度だけ同梱の assets/ に切りかえる。切りかえたら true
+  function fallbackToLocalMedia(el) {
+    const cur = el.getAttribute("src") || "";
+    if (cur.indexOf(MEDIA_BASE) !== 0) return false;
+    el.src = cur.slice(MEDIA_BASE.length);
+    return true;
+  }
+
   const LEVEL_MAX = 20;
   const STATE_KEY = "azumaQuestState";
 
@@ -50,8 +64,8 @@
     "#ffffff", // 白（聖なる光）
   ];
   const LEVELUP_VIDEO = {
-    braver: "assets/levelup-braver.mp4",
-    wizard: "assets/levelup-wizard.mp4",
+    braver: media("assets/levelup-braver.mp4"),
+    wizard: media("assets/levelup-wizard.mp4"),
   };
 
   // ------------------------------------------------------------------
@@ -114,6 +128,10 @@
   const bottomNav = document.getElementById("bottom-nav");
   const navButtons = document.querySelectorAll(".nav-btn");
   const openingVideo = document.getElementById("opening-video");
+  openingVideo.addEventListener("error", () => {
+    if (fallbackToLocalMedia(openingVideo)) openingVideo.play().catch(() => {});
+  });
+  openingVideo.src = media("assets/Opening.mp4");
 
   function showScreen(name) {
     screens.forEach((el) => el.classList.toggle("active", el.id === `screen-${name}`));
@@ -1214,7 +1232,8 @@
       finished = true;
       clearTimeout(safetyTimeout);
       videoEl.removeEventListener("ended", finish);
-      videoEl.removeEventListener("error", finish);
+      videoEl.removeEventListener("error", onError);
+      videoEl.removeEventListener("loadedmetadata", onMetadata);
       videoEl.pause(); // スキップしたときに、音が残らないよう止める
       btnOverlaySkip.hidden = true;
       overlaySkipHandler = null;
@@ -1223,16 +1242,22 @@
     overlaySkipHandler = finish;
     btnOverlaySkip.hidden = !skippable;
     videoEl.addEventListener("ended", finish);
-    videoEl.addEventListener("error", finish);
-    videoEl.addEventListener(
-      "loadedmetadata",
-      () => {
-        clearTimeout(safetyTimeout);
-        const durationMs = isFinite(videoEl.duration) ? videoEl.duration * 1000 : 30000;
-        safetyTimeout = setTimeout(finish, durationMs + 3000);
-      },
-      { once: true }
-    );
+    // Cloudflare から読み込めなかったときは、同梱の動画に切りかえて再生しなおす
+    function onError() {
+      if (finished) return;
+      if (fallbackToLocalMedia(videoEl)) {
+        videoEl.play().catch(() => {});
+      } else {
+        finish();
+      }
+    }
+    function onMetadata() {
+      clearTimeout(safetyTimeout);
+      const durationMs = isFinite(videoEl.duration) ? videoEl.duration * 1000 : 30000;
+      safetyTimeout = setTimeout(finish, durationMs + 3000);
+    }
+    videoEl.addEventListener("error", onError);
+    videoEl.addEventListener("loadedmetadata", onMetadata);
 
     // 再生開始が遅れて、スキップ後に始まってしまうと音だけが流れ続けるため、
     // 終わったあとに再生が始まったら止める
@@ -1243,7 +1268,7 @@
       .play()
       .then(stopIfFinished)
       .catch(() => {
-        if (finished) return;
+        if (finished || videoEl.error) return; // 読み込み失敗は onError が処理する
         videoEl.muted = true;
         videoEl.play().then(stopIfFinished).catch(finish);
       });
@@ -1278,7 +1303,7 @@
     playOverlayVideo({
       videoEl: bossintroVideo,
       screenName: "bossintro",
-      src: "assets/boss-battle-start.mp4",
+      src: media("assets/boss-battle-start.mp4"),
       onFinish: () => {
         state.quizIntroPlayed = true;
         saveState();
@@ -1294,16 +1319,16 @@
   // ------------------------------------------------------------------
   // かいほう前の動画は、内容が事前に分からないよう一覧にも出さない。
   const GALLERY_VIDEOS = [
-    { title: "オープニング", src: "assets/Opening.mp4", unlocked: () => true },
+    { title: "オープニング", src: media("assets/Opening.mp4"), unlocked: () => true },
     // クエストの討伐動画：その勲章（0:あか 1:あお 2:みどり 3:ピンク）を手に入れると見返せる
-    { title: "ガーゴイルを たおした！", src: "assets/quest-slay-gargoyle.mp4", unlocked: () => !!state.eventMedal[0] },
-    { title: "ピラニアンを たおした！", src: "assets/quest-slay-piranian.mp4", unlocked: () => !!state.eventMedal[1] },
-    { title: "サーペントを たおした！", src: "assets/quest-slay-serpent.mp4", unlocked: () => !!state.eventMedal[2] },
-    { title: "アビスバイクを たおした！", src: "assets/quest-slay-abyssbike.mp4", unlocked: () => !!state.eventMedal[3] },
-    { title: "ひみつの かくしつうろ", src: "assets/transfer-last-quest.mp4", unlocked: () => state.eventLastQuestPass },
-    { title: "まおうとの けっせん", src: "assets/boss-battle-start.mp4", unlocked: () => state.quizIntroPlayed },
-    { title: "まおうを たおした！", src: "assets/boss-defeated.mp4", unlocked: () => state.quizWon },
-    { title: "おひめさまからの ありがとう", src: "assets/ending-thanks.mp4", unlocked: () => state.eventEnding },
+    { title: "ガーゴイルを たおした！", src: media("assets/quest-slay-gargoyle.mp4"), unlocked: () => !!state.eventMedal[0] },
+    { title: "ピラニアンを たおした！", src: media("assets/quest-slay-piranian.mp4"), unlocked: () => !!state.eventMedal[1] },
+    { title: "サーペントを たおした！", src: media("assets/quest-slay-serpent.mp4"), unlocked: () => !!state.eventMedal[2] },
+    { title: "アビスバイクを たおした！", src: media("assets/quest-slay-abyssbike.mp4"), unlocked: () => !!state.eventMedal[3] },
+    { title: "ひみつの かくしつうろ", src: media("assets/transfer-last-quest.mp4"), unlocked: () => state.eventLastQuestPass },
+    { title: "まおうとの けっせん", src: media("assets/boss-battle-start.mp4"), unlocked: () => state.quizIntroPlayed },
+    { title: "まおうを たおした！", src: media("assets/boss-defeated.mp4"), unlocked: () => state.quizWon },
+    { title: "おひめさまからの ありがとう", src: media("assets/ending-thanks.mp4"), unlocked: () => state.eventEnding },
   ];
   const galleryList = document.getElementById("gallery-list");
   const replayVideo = document.getElementById("replay-video");
@@ -1342,10 +1367,10 @@
 
   // クエスト討伐の動画。勲章の番号（0:あか 1:あお 2:みどり 3:ピンク）→ モンスターの動画
   const QUEST_SLAY_VIDEO = [
-    "assets/quest-slay-gargoyle.mp4", // あか：ガーゴイル
-    "assets/quest-slay-piranian.mp4", // あお：ピラニアン
-    "assets/quest-slay-serpent.mp4", // みどり：サーペント
-    "assets/quest-slay-abyssbike.mp4", // ピンク：アビスバイク
+    media("assets/quest-slay-gargoyle.mp4"), // あか：ガーゴイル
+    media("assets/quest-slay-piranian.mp4"), // あお：ピラニアン
+    media("assets/quest-slay-serpent.mp4"), // みどり：サーペント
+    media("assets/quest-slay-abyssbike.mp4"), // ピンク：アビスバイク
   ];
   const questSlayVideo = document.getElementById("questslay-video");
 
@@ -1368,7 +1393,7 @@
     playOverlayVideo({
       videoEl: transferVideo,
       screenName: "transfer",
-      src: "assets/transfer-last-quest.mp4",
+      src: media("assets/transfer-last-quest.mp4"),
       onFinish: enterBossRoom,
     });
   }
@@ -1379,7 +1404,7 @@
     playOverlayVideo({
       videoEl: endingVideo,
       screenName: "ending",
-      src: "assets/ending-thanks.mp4",
+      src: media("assets/ending-thanks.mp4"),
       onFinish: () => showScreen("status"),
     });
   }
@@ -1388,7 +1413,7 @@
     playOverlayVideo({
       videoEl: bossvictoryVideo,
       screenName: "bossvictory",
-      src: "assets/boss-defeated.mp4",
+      src: media("assets/boss-defeated.mp4"),
       onFinish: () => {
         showScreen("status");
         retriggerStatusClearFadeIn();
@@ -1463,6 +1488,8 @@
   const quizChoicesEl = document.getElementById("quiz-choices");
   const quizContent = document.getElementById("quiz-content");
   const quizBgm = document.getElementById("quiz-bgm");
+  quizBgm.addEventListener("error", () => fallbackToLocalMedia(quizBgm));
+  quizBgm.src = media("assets/quiz-bgm.mp3");
 
   function retriggerQuizFadeIn() {
     quizContent.classList.remove("fade-in-play");
