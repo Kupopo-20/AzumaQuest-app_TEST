@@ -879,12 +879,16 @@ button {
   font-size: 1.5rem;
   text-shadow: 2px 2px 0 #000;
 }
-.status-clear-sub {
-  margin: 0;
-  color: var(--dq-white);
-  font-weight: 400;
+.status-defeated-message {
+  margin: 28px 0 0;
+  color: var(--dq-gold);
+  font-weight: 700;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.95rem; /* 「とうぞくのカギ」の文字（.key-reveal-text）と同じ */
+  text-shadow: 1px 1px 0 #000;
+}
+.status-defeated-message[hidden] {
+  display: none;
 }
 .status-bossroom-btn {
   display: block;

@@ -677,14 +677,16 @@
         .join("");
     }
     document.getElementById("btn-status-enter-bossroom").hidden = !(state.eventLastQuestPass && !state.quizWon);
-    document.getElementById("status-boss-defeated-banner").hidden = !state.quizWon;
+    // まおうを倒したら、まず「そんちょうへみせて」だけ表示。エンディングのQRを読んだあとに勲章とクリアを表示する
+    document.getElementById("status-boss-defeated-message").hidden = !(state.quizWon && !state.eventEnding);
+    document.getElementById("status-boss-defeated-banner").hidden = !(state.quizWon && state.eventEnding);
     document.getElementById("status-key-reveal").hidden = !(state.keyRevealed && !state.quizWon);
     if (state.keyRevealed && !state.quizWon) {
       const keyImg = document.getElementById("key-reveal-image");
       if (!keyImg.classList.contains("drop-in-play")) keyImg.classList.add("key-glowing");
     }
     stopMedalShineRandomizer();
-    if (state.quizWon) startCrownSparkle();
+    if (state.quizWon && state.eventEnding) startCrownSparkle();
     else stopCrownSparkle();
     if (pendingMedalSparkleIndex !== null) {
       const newMedalIndex = pendingMedalSparkleIndex;
@@ -1405,7 +1407,11 @@
       videoEl: endingVideo,
       screenName: "ending",
       src: media("assets/ending-thanks.mp4"),
-      onFinish: () => showScreen("status"),
+      // 動画が終わったら、黄色い勲章とクリアの表示をゆっくり出す
+      onFinish: () => {
+        showScreen("status");
+        retriggerStatusClearFadeIn();
+      },
     });
   }
 
@@ -1414,10 +1420,7 @@
       videoEl: bossvictoryVideo,
       screenName: "bossvictory",
       src: media("assets/boss-defeated.mp4"),
-      onFinish: () => {
-        showScreen("status");
-        retriggerStatusClearFadeIn();
-      },
+      onFinish: () => showScreen("status"),
     });
   }
 

@@ -110,14 +110,15 @@
       </div>
       <p class="status-clear-title">あずま保育園クエスト クリア！！</p>
     </div>
-    <p class="status-clear-sub">がめんを　そんちょうへ　みせてみよう。</p>
   </div>
+
+  <!-- まおうをたおしたあと〜エンディングのQRを読むまで -->
+  <p id="status-boss-defeated-message" class="status-defeated-message" hidden>まおうを　たおした！<br>がめんを　そんちょうへ　みせて！</p>
 
   <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
   <button id="btn-debug-level-plus1" class="btn-debug-reset">【デバッグ】レベルを＋１</button>
   <button id="btn-debug-quest-clear" class="btn-debug-reset">【デバッグ】クエストを1つクリア（ランダム）</button>
   <button id="btn-debug-quiz-enter-door" class="btn-debug-reset">【デバッグ】まおうの部屋へ直行</button>
-  <button id="btn-debug-quiz-force-win" class="btn-debug-reset">【デバッグ】クイズ強制クリア</button>
   <button id="btn-debug-ending" class="btn-debug-reset">【デバッグ】エンディング</button>
   <button id="btn-debug-back-to-opening" class="btn-debug-reset">【デバッグ】スタート画面にもどる</button>
   <!-- ▲▲▲ デバッグ用ここまで ▲▲▲ -->
@@ -257,6 +258,9 @@
       <button class="quiz-bar quiz-choice-btn" data-choice-index="3"></button>
     </div>
   </div>
+  <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
+  <button id="btn-debug-quiz-force-win" class="btn-debug-reset">【デバッグ】クイズ強制クリア</button>
+  <!-- ▲▲▲ デバッグ用ここまで ▲▲▲ -->
   <audio id="quiz-bgm" loop preload="auto"></audio>
 </section>
 
