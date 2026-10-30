@@ -53,6 +53,8 @@
   <div class="status-panel">
     <div class="status-character-wrap">
       <img id="status-character-image" class="status-character-image" src="assets/braver.png" alt="キャラクター" draggable="false">
+      <!-- しばらく触らないと、キャラが寛ぐ動画に切りかわる（音なし・ループ） -->
+      <video id="status-idle-video" class="status-idle-video" muted loop playsinline preload="none" hidden></video>
       <div id="levelup-star-layer" class="levelup-star-layer"></div>
     </div>
     <div class="status-info">

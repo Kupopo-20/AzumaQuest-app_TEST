@@ -157,6 +157,8 @@
       finishStatusClearFadeIn();
       finishLevelUpGlow();
     }
+    if (name === "status") startIdleTimer();
+    else stopIdle();
     if (name === "treasure") renderTreasureList();
     if (name === "camera") startCamera();
     else stopCamera();
@@ -169,6 +171,87 @@
 
   navButtons.forEach((btn) => {
     btn.addEventListener("click", () => showScreen(btn.dataset.screen));
+  });
+
+  // ------------------------------------------------------------------
+  // ステータス画面の寛ぎ動画：1分間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
+  // 画面のどこかに触れると元のキャラ画像にもどる（寛ぎ中の最初のタッチは、ボタンなどを押さない）。
+  // ------------------------------------------------------------------
+  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 60) * 1000;
+  const IDLE_VIDEO = { braver: "assets/idle-braver.mp4", wizard: "assets/idle-wizard.mp4" };
+  const idleVideo = document.getElementById("status-idle-video");
+  const idleCharacterImage = document.getElementById("status-character-image");
+  let idleTimer = null;
+  let idleWanted = false; // 寛ぎ動画を出したい状態（読み込み中を含む）
+  let idleShown = false; // 動画が実際に映っている状態
+  let swallowClick = false;
+
+  function statusScreenActive() {
+    return document.getElementById("screen-status").classList.contains("active");
+  }
+
+  function startIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(enterIdle, IDLE_MS);
+  }
+
+  function enterIdle() {
+    if (!statusScreenActive() || document.hidden) return;
+    idleWanted = true;
+    idleVideo.src = media(IDLE_VIDEO[state.character || "braver"]);
+    idleVideo.currentTime = 0;
+    idleVideo.play().catch(() => {});
+  }
+
+  function exitIdle() {
+    idleWanted = false;
+    idleShown = false;
+    idleVideo.pause();
+    idleVideo.hidden = true;
+    idleCharacterImage.classList.remove("is-idle-hidden");
+  }
+
+  function stopIdle() {
+    clearTimeout(idleTimer);
+    exitIdle();
+  }
+
+  // 映り始めてから切りかえる（読み込み中に画像が消えて空白になるのを防ぐ）
+  idleVideo.addEventListener("playing", () => {
+    if (!idleWanted) return;
+    idleShown = true;
+    idleVideo.hidden = false;
+    idleCharacterImage.classList.add("is-idle-hidden");
+  });
+  idleVideo.addEventListener("error", () => {
+    if (idleWanted && fallbackToLocalMedia(idleVideo)) idleVideo.play().catch(() => {});
+  });
+
+  function onUserActivity(e) {
+    if (!statusScreenActive()) return;
+    if (idleWanted && e.type === "pointerdown") {
+      swallowClick = true;
+      setTimeout(() => (swallowClick = false), 600);
+    }
+    if (idleWanted) exitIdle();
+    startIdleTimer();
+  }
+  ["pointerdown", "keydown", "wheel", "scroll"].forEach((type) => {
+    document.addEventListener(type, onUserActivity, { capture: true, passive: true });
+  });
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true
+  );
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopIdle();
+    else if (statusScreenActive()) startIdleTimer();
   });
 
   // ------------------------------------------------------------------
