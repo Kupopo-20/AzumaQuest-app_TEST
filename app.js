@@ -174,10 +174,10 @@
   });
 
   // ------------------------------------------------------------------
-  // ステータス画面の寛ぎ動画：30秒間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
+  // ステータス画面の寛ぎ動画：15秒間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
   // 画面のどこかに触れると元のキャラ画像にもどる（寛ぎ中の最初のタッチは、ボタンなどを押さない）。
   // ------------------------------------------------------------------
-  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 30) * 1000;
+  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 15) * 1000;
   // key: true の動画は、緑の背景を抜いて（透明にして）表示する。静止画と同じオーラが付き、キャラの大きさ・位置も合わせられる。
   //   stillBox: 静止画の中で、キャラが占める範囲 [左, 上, 右, 下]（0〜1。画像の透明でない部分を測った値）
   //   videoBox: 動画の最初のコマで、キャラが占める範囲（同じ表し方）。この2つが重なるように、動画を拡大・移動する
@@ -199,7 +199,6 @@
   let idleKeyed = false; // いま流している動画が、緑を抜いて表示する動画か
   let idleRenderToken = 0; // 描画の繰り返しを止めるための番号
   let idleRendering = false; // 緑を抜いた描画の最中か
-  const IDLE_CANVAS_SCALE = 1; // 緑を抜く描画の細かさ（1 = 表示の大きさと同じ画素数。小さいほど軽く、粗くなる）
   let idleFinished = false; // 寛ぎ動画を最後まで流しおえた（次に触れるまで、くり返さない）
   let idleTimer = null;
   let idleWanted = false; // 寛ぎ動画を出したい状態（読み込み中を含む）
@@ -297,8 +296,8 @@
     idleCanvas.style.height = cssH + "px";
     idleCanvas.style.left = (sx0 - wc * vx0) * boxW + "px";
     idleCanvas.style.top = (sy0 - hc * vy0) * boxH + "px";
-    // 画素の数は、画面の大きさ（CSSの1pxにつき1画素）まで下げて軽くする。細かくすると、処理が重くなる
-    const dpr = IDLE_CANVAS_SCALE;
+    // 画素の数は、画面の細かさ（最大2倍）に合わせる。多すぎると、処理が重くなる
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     idleCanvas.width = Math.max(1, Math.round(cssW * dpr));
     idleCanvas.height = Math.max(1, Math.round(cssH * dpr));
   }
@@ -403,7 +402,9 @@
     if (!statusScreenActive()) return;
     // 寛ぎ動画に切りかえるときの自動スクロールは、「触った」には数えない
     if (e.type === "scroll" && Date.now() < idleIgnoreScrollUntil) return;
-    if (idleWanted && e.type === "pointerdown") {
+    // 寛ぎ中の最初のタッチは、ボタンを押したことにしない。ただし下のナビは、1回のタッチでそのまま移れるようにする
+    const onNav = e.target && e.target.closest && e.target.closest("#bottom-nav");
+    if (idleWanted && e.type === "pointerdown" && !onNav) {
       swallowClick = true;
       setTimeout(() => (swallowClick = false), 600);
     }
