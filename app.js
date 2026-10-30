@@ -178,9 +178,27 @@
   // 画面のどこかに触れると元のキャラ画像にもどる（寛ぎ中の最初のタッチは、ボタンなどを押さない）。
   // ------------------------------------------------------------------
   const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 30) * 1000;
-  const IDLE_VIDEO = { braver: "assets/idle-braver.mp4", wizard: "assets/idle-wizard.mp4" };
+  // key: true の動画は、緑の背景を抜いて（透明にして）表示する。静止画と同じオーラが付き、キャラの大きさ・位置も合わせられる。
+  //   stillBox: 静止画の中で、キャラが占める範囲 [左, 上, 右, 下]（0〜1。画像の透明でない部分を測った値）
+  //   videoBox: 動画の最初のコマで、キャラが占める範囲（同じ表し方）。この2つが重なるように、動画を拡大・移動する
+  // key: false の動画は、背景つきのまま、静止画の枠にぴったり重ねる。
+  const IDLE_VIDEO = {
+    braver: {
+      src: "assets/idle-braver-key.mp4",
+      key: true,
+      stillBox: [0.0179, 0.0154, 0.9724, 0.9846],
+      videoBox: [0.179, 0.178, 0.814, 0.823],
+    },
+    wizard: { src: "assets/idle-wizard.mp4", key: false },
+  };
   const idleVideo = document.getElementById("status-idle-video");
+  const idleCanvas = document.getElementById("status-idle-canvas");
+  const idleCanvasCtx = idleCanvas.getContext("2d", { willReadFrequently: true });
   const idleCharacterImage = document.getElementById("status-character-image");
+  const idleCharacterWrap = idleCharacterImage.parentElement;
+  let idleKeyed = false; // いま流している動画が、緑を抜いて表示する動画か
+  let idleRenderToken = 0; // 描画の繰り返しを止めるための番号
+  let idleRendering = false; // 緑を抜いた描画の最中か
   let idleTimer = null;
   let idleWanted = false; // 寛ぎ動画を出したい状態（読み込み中を含む）
   let idleShown = false; // 動画が実際に映っている状態
@@ -202,12 +220,132 @@
   function restartIdleCount() {
     idleLastActivity = Date.now();
     startIdleTimer();
+    preloadIdleVideo();
   }
+
+  // 動画を先に読み込んでおく（切りかえの瞬間に、回線が遅くて待たされないように）。再生はしない
+  function preloadIdleVideo() {
+    const cfg = IDLE_VIDEO[state.character || "braver"];
+    const cur = idleVideo.getAttribute("src") || "";
+    if (cur === media(cfg.src) || cur === cfg.src) return; // すでに読み込み中／済み（予備の assets/ に切りかえ済みも含む）
+    idleKeyed = cfg.key;
+    // キャンバスに描いて画素を読むため、別の場所（Cloudflare）の動画は「許可つき」で読み込む
+    if (cfg.key) idleVideo.crossOrigin = "anonymous";
+    else idleVideo.removeAttribute("crossorigin");
+    idleVideo.preload = "auto";
+    idleVideo.src = media(cfg.src);
+    idleVideo.load();
+  }
+
+  // ---- 緑を抜いて描く -------------------------------------------------
+  // 動画のコマを idleCanvas に描き、背景の緑を透明にする。
+  // 背景の緑の濃さ（G − max(R,B)）を基準にして、「どれだけ緑が混ざっているか」を透明度にし、
+  // 輪郭に残る緑のにじみは、混ざった緑を引き算して取りのぞく。
+  // （背景の緑の色は、動画の中で時間とともに少し変わるため、コマごとに測りなおす）
+
+  function measureIdleBackground(data, w, h) {
+    let n = 0, r = 0, g = 0, b = 0;
+    const take = (x, y) => {
+      const i = (y * w + x) * 4;
+      r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+    };
+    // 動画の一番ふちには、本物とちがう色（真っ緑）のふちが付いていることがある。少し内側の、キャラのいない所で測る
+    const ix = Math.round(w * 0.05), iy = Math.round(h * 0.05);
+    for (let x = ix; x < w - ix; x += 4) { take(x, iy); take(x, h - 1 - iy); }
+    for (let y = iy; y < h - iy; y += 4) { take(ix, y); take(w - 1 - ix, y); }
+    r /= n; g /= n; b /= n;
+    return { r, g, b, s: g - Math.max(r, b) };
+  }
+
+  function keyIdleFrame(data, w, h) {
+    const idleBg = measureIdleBackground(data, w, h);
+    const { r: br, g: bg, b: bb, s: sbg } = idleBg;
+    if (sbg < 30) return; // 背景が緑でない動画のときは、何もしない
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const s = g - (r > b ? r : b);
+      // 緑の濃さ（背景を1とした割合 t）→ 残す割合（不透明度）。
+      // t が 0.85 以上は背景（動画の圧縮によるムラも含めて、完全に透明）、0.12 以下はキャラそのもの
+      let a = (0.85 - s / sbg) / 0.73;
+      if (a >= 1) continue; // 緑が混ざっていない（キャラそのもの）
+      if (a <= 0) { data[i + 3] = 0; continue; }
+      // 混ざった緑を引き算して、本来の色にもどす
+      const k = 1 - a;
+      let nr = (r - k * br) / a, ng = (g - k * bg) / a, nb = (b - k * bb) / a;
+      const cap = (nr > nb ? nr : nb) + 6; // 緑だけ強く残るのを抑える
+      if (ng > cap) ng = cap;
+      data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
+      data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
+      data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+      data[i + 3] = a * 255;
+    }
+  }
+
+  // キャンバスの位置と大きさを、静止画のキャラに重なるように決める
+  function layoutIdleCanvas(cfg) {
+    const boxW = idleCharacterImage.clientWidth;
+    const boxH = idleCharacterImage.clientHeight;
+    const [sx0, sy0, sx1, sy1] = cfg.stillBox;
+    const [vx0, vy0, vx1, vy1] = cfg.videoBox;
+    const wc = (sx1 - sx0) / (vx1 - vx0); // 動画の全体の幅は、枠の幅の何倍か
+    const hc = (sy1 - sy0) / (vy1 - vy0);
+    const cssW = boxW * wc, cssH = boxH * hc;
+    idleCanvas.style.width = cssW + "px";
+    idleCanvas.style.height = cssH + "px";
+    idleCanvas.style.left = (sx0 - wc * vx0) * boxW + "px";
+    idleCanvas.style.top = (sy0 - hc * vy0) * boxH + "px";
+    // 画素の数は、画面の細かさ（最大2倍）に合わせる。多すぎると、処理が重くなる
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    idleCanvas.width = Math.max(1, Math.round(cssW * dpr));
+    idleCanvas.height = Math.max(1, Math.round(cssH * dpr));
+  }
+
+  function startIdleRender(cfg) {
+    const token = ++idleRenderToken;
+    layoutIdleCanvas(cfg);
+    // オーラは静止画と同じ（色と段階をそろえる）
+    const auraClass = Array.from(idleCharacterImage.classList).filter((c) => /^aura-\d$/.test(c));
+    idleCanvas.className = "status-idle-canvas " + auraClass.join(" ");
+    idleCanvas.style.setProperty("--aura-color", idleCharacterImage.style.getPropertyValue("--aura-color"));
+    const draw = () => {
+      if (token !== idleRenderToken || !idleWanted) return;
+      if (idleVideo.readyState >= 2) {
+        const w = idleCanvas.width, h = idleCanvas.height;
+        idleCanvasCtx.drawImage(idleVideo, 0, 0, w, h);
+        let frame;
+        try {
+          frame = idleCanvasCtx.getImageData(0, 0, w, h);
+        } catch (e) {
+          // 画素を読めない（許可つきで読み込めていない）ときは、予備の動画に切りかえる
+          if (fallbackToLocalMedia(idleVideo)) idleVideo.play().catch(() => {});
+          return;
+        }
+        keyIdleFrame(frame.data, w, h);
+        idleCanvasCtx.putImageData(frame, 0, 0);
+        if (!idleShown) {
+          idleShown = true;
+          idleCanvas.hidden = false;
+          idleCharacterImage.classList.add("is-idle-hidden");
+        }
+      }
+      if (idleVideo.requestVideoFrameCallback) idleVideo.requestVideoFrameCallback(draw);
+      else requestAnimationFrame(draw);
+    };
+    draw();
+  }
+
+  let idleIgnoreScrollUntil = 0;
 
   function enterIdle() {
     if (!statusScreenActive() || document.hidden) return;
     idleWanted = true;
-    idleVideo.src = media(IDLE_VIDEO[state.character || "braver"]);
+    // 画面を下へスクロールしていると、キャラが見えない。先頭へもどして、動画が見えるようにする
+    const statusScreen = document.getElementById("screen-status");
+    if (statusScreen.scrollTop > 0) {
+      idleIgnoreScrollUntil = Date.now() + 1000;
+      statusScreen.scrollTo({ top: 0 });
+    }
+    preloadIdleVideo();
     idleVideo.currentTime = 0;
     idleVideo.play().catch(() => {});
   }
@@ -215,8 +353,12 @@
   function exitIdle() {
     idleWanted = false;
     idleShown = false;
+    idleRendering = false;
+    idleRenderToken++; // 描画の繰り返しを止める
     idleVideo.pause();
     idleVideo.hidden = true;
+    idleVideo.classList.remove("is-source");
+    idleCanvas.hidden = true;
     idleCharacterImage.classList.remove("is-idle-hidden");
   }
 
@@ -228,16 +370,29 @@
   // 映り始めてから切りかえる（読み込み中に画像が消えて空白になるのを防ぐ）
   idleVideo.addEventListener("playing", () => {
     if (!idleWanted) return;
+    if (idleKeyed) {
+      // 緑を抜く動画：動画そのものは見せず、コマを描きはじめる（最初のコマが描けたら、静止画と入れかわる）
+      if (idleRendering) return;
+      idleRendering = true;
+      idleVideo.classList.add("is-source");
+      idleVideo.hidden = false;
+      startIdleRender(IDLE_VIDEO[state.character || "braver"]);
+      return;
+    }
+    idleVideo.classList.remove("is-source");
     idleShown = true;
     idleVideo.hidden = false;
     idleCharacterImage.classList.add("is-idle-hidden");
   });
   idleVideo.addEventListener("error", () => {
-    if (idleWanted && fallbackToLocalMedia(idleVideo)) idleVideo.play().catch(() => {});
+    // 先読み中（まだ流していない）に読み込めなかったときも、予備の動画に切りかえておく
+    if (fallbackToLocalMedia(idleVideo) && idleWanted) idleVideo.play().catch(() => {});
   });
 
   function onUserActivity(e) {
     if (!statusScreenActive()) return;
+    // 寛ぎ動画に切りかえるときの自動スクロールは、「触った」には数えない
+    if (e.type === "scroll" && Date.now() < idleIgnoreScrollUntil) return;
     if (idleWanted && e.type === "pointerdown") {
       swallowClick = true;
       setTimeout(() => (swallowClick = false), 600);
