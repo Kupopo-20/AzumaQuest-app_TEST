@@ -190,6 +190,7 @@
   // key: true の動画は、緑の背景を抜いて（透明にして）表示する。静止画と同じオーラが付き、キャラの大きさ・位置も合わせられる。
   //   stillBox: 静止画の中で、キャラが占める範囲 [左, 上, 右, 下]（0〜1。画像の透明でない部分を測った値）
   //   videoBox: 動画の最初のコマで、キャラが占める範囲（同じ表し方）。この2つが重なるように、動画を拡大・移動する
+  //   videoBoxes: 動画ごとに videoBox がちがうときの、ファイルごとの値（なければ videoBox を使う）
   // key: false の動画は、背景つきのまま、静止画の枠にぴったり重ねる。
   const IDLE_VIDEO = {
     braver: {
@@ -198,7 +199,17 @@
       stillBox: [0.0179, 0.0154, 0.9724, 0.9846],
       videoBox: [0.179, 0.178, 0.814, 0.823],
     },
-    wizard: { srcs: ["assets/idle-wizard.mp4"], key: false },
+    wizard: {
+      srcs: ["assets/idle-wizard-key1.mp4", "assets/idle-wizard-key2.mp4", "assets/idle-wizard-key3.mp4"],
+      key: true,
+      stillBox: [0.0349, 0.0204, 0.9331, 0.9864],
+      // 動画ごとに、キャラの写る大きさ・位置がちがう（動画の縦横比もちがう）ので、動画ごとに測った値を入れる
+      videoBoxes: {
+        "assets/idle-wizard-key1.mp4": [0.193, 0.181, 0.789, 0.823],
+        "assets/idle-wizard-key2.mp4": [0.191, 0.093, 0.79, 0.913],
+        "assets/idle-wizard-key3.mp4": [0.191, 0.093, 0.79, 0.913],
+      },
+    },
   };
   const idleVideo = document.getElementById("status-idle-video");
   const idleCanvas = document.getElementById("status-idle-canvas");
@@ -235,6 +246,7 @@
 
   // 動画を先に読み込んでおく（切りかえの瞬間に、回線が遅くて待たされないように）。再生はしない
   let idleSrc = null; // 次に流す動画（複数あるときは、ランダムに1つ選ぶ）
+  let idleCurrentSrc = null; // いま流している動画（位置合わせの値を、動画ごとに選ぶために覚えておく）
 
   // 次に流す動画をランダムに選ぶ（同じ動画が続けて出てもよい）
   function chooseIdleSrc(cfg) {
@@ -300,11 +312,11 @@
   }
 
   // キャンバスの位置と大きさを、静止画のキャラに重なるように決める
-  function layoutIdleCanvas(cfg) {
+  function layoutIdleCanvas(cfg, src) {
     const boxW = idleCharacterImage.clientWidth;
     const boxH = idleCharacterImage.clientHeight;
     const [sx0, sy0, sx1, sy1] = cfg.stillBox;
-    const [vx0, vy0, vx1, vy1] = cfg.videoBox;
+    const [vx0, vy0, vx1, vy1] = (cfg.videoBoxes && cfg.videoBoxes[src]) || cfg.videoBox;
     const wc = (sx1 - sx0) / (vx1 - vx0); // 動画の全体の幅は、枠の幅の何倍か
     const hc = (sy1 - sy0) / (vy1 - vy0);
     const cssW = boxW * wc, cssH = boxH * hc;
@@ -320,7 +332,7 @@
 
   function startIdleRender(cfg) {
     const token = ++idleRenderToken;
-    layoutIdleCanvas(cfg);
+    layoutIdleCanvas(cfg, idleCurrentSrc);
     // オーラは静止画と同じ（色と段階をそろえる）
     const auraClass = Array.from(idleCharacterImage.classList).filter((c) => /^aura-\d$/.test(c));
     idleCanvas.className = "status-idle-canvas " + auraClass.join(" ");
@@ -364,6 +376,7 @@
       statusScreen.scrollTo({ top: 0 });
     }
     preloadIdleVideo();
+    idleCurrentSrc = idleSrc;
     idleSrc = null; // 次の回は、また選びなおす（流しおえたあと／触ったあとの先読みで決まる）
     idleVideo.currentTime = 0;
     idleVideo.play().catch(() => {});
