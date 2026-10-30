@@ -157,7 +157,7 @@
       finishStatusClearFadeIn();
       finishLevelUpGlow();
     }
-    if (name === "status") startIdleTimer();
+    if (name === "status") restartIdleCount();
     else stopIdle();
     if (name === "treasure") renderTreasureList();
     if (name === "camera") startCamera();
@@ -174,10 +174,10 @@
   });
 
   // ------------------------------------------------------------------
-  // ステータス画面の寛ぎ動画：1分間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
+  // ステータス画面の寛ぎ動画：30秒間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
   // 画面のどこかに触れると元のキャラ画像にもどる（寛ぎ中の最初のタッチは、ボタンなどを押さない）。
   // ------------------------------------------------------------------
-  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 60) * 1000;
+  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 30) * 1000;
   const IDLE_VIDEO = { braver: "assets/idle-braver.mp4", wizard: "assets/idle-wizard.mp4" };
   const idleVideo = document.getElementById("status-idle-video");
   const idleCharacterImage = document.getElementById("status-character-image");
@@ -190,9 +190,18 @@
     return document.getElementById("screen-status").classList.contains("active");
   }
 
-  function startIdleTimer() {
+  let idleLastActivity = Date.now(); // 最後に触れた（ステータス画面を開いた）時刻
+
+  // 待ち時間を数えはじめる。remainingMs を渡すと、その残り時間だけ待つ（画面が消えていた時間の続き）
+  function startIdleTimer(remainingMs = IDLE_MS) {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(enterIdle, IDLE_MS);
+    idleTimer = setTimeout(enterIdle, Math.max(0, remainingMs));
+  }
+
+  // 触れた／画面を開いた時刻を記録して、0秒から数えなおす
+  function restartIdleCount() {
+    idleLastActivity = Date.now();
+    startIdleTimer();
   }
 
   function enterIdle() {
@@ -234,7 +243,7 @@
       setTimeout(() => (swallowClick = false), 600);
     }
     if (idleWanted) exitIdle();
-    startIdleTimer();
+    restartIdleCount();
   }
   ["pointerdown", "keydown", "wheel", "scroll"].forEach((type) => {
     document.addEventListener(type, onUserActivity, { capture: true, passive: true });
@@ -249,9 +258,20 @@
     },
     true
   );
+  // 画面が消えている間は、時間を止める。復帰したときは、消える直前に残っていた時間の続きから数える
+  // （画面を点けるためのタッチはアプリには届かず、「触れた」には数えない）
+  let idleRemainingAtHide = IDLE_MS;
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopIdle();
-    else if (statusScreenActive()) startIdleTimer();
+    if (document.hidden) {
+      if (statusScreenActive()) {
+        // すでに寛ぎ動画に入っていたなら、復帰してすぐ動画にもどす（残り0）
+        idleRemainingAtHide = idleWanted ? 0 : Math.max(0, IDLE_MS - (Date.now() - idleLastActivity));
+      }
+      stopIdle();
+    } else if (statusScreenActive()) {
+      idleLastActivity = Date.now() - (IDLE_MS - idleRemainingAtHide);
+      startIdleTimer(idleRemainingAtHide);
+    }
   });
 
   // ------------------------------------------------------------------
@@ -1043,6 +1063,11 @@
   // ------------------------------------------------------------------
   // デバッグ用（本番公開前に必ず削除すること）
   // ------------------------------------------------------------------
+  // 待たずに、すぐ寛ぎ動画に切りかえる（触れば元にもどる）
+  document.getElementById("btn-debug-idle").addEventListener("click", () => {
+    enterIdle();
+  });
+
   // QR「Azuma_event_Ending」を読み込んだときと同じ処理（まおう討伐後のみ・1回だけ）を通す
   document.getElementById("btn-debug-ending").addEventListener("click", () => {
     handleQrCode(ENDING_CODE);
