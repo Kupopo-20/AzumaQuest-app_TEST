@@ -199,6 +199,8 @@
   let idleKeyed = false; // いま流している動画が、緑を抜いて表示する動画か
   let idleRenderToken = 0; // 描画の繰り返しを止めるための番号
   let idleRendering = false; // 緑を抜いた描画の最中か
+  const IDLE_CANVAS_SCALE = 1; // 緑を抜く描画の細かさ（1 = 表示の大きさと同じ画素数。小さいほど軽く、粗くなる）
+  let idleFinished = false; // 寛ぎ動画を最後まで流しおえた（次に触れるまで、くり返さない）
   let idleTimer = null;
   let idleWanted = false; // 寛ぎ動画を出したい状態（読み込み中を含む）
   let idleShown = false; // 動画が実際に映っている状態
@@ -218,6 +220,7 @@
 
   // 触れた／画面を開いた時刻を記録して、0秒から数えなおす
   function restartIdleCount() {
+    idleFinished = false;
     idleLastActivity = Date.now();
     startIdleTimer();
     preloadIdleVideo();
@@ -294,8 +297,8 @@
     idleCanvas.style.height = cssH + "px";
     idleCanvas.style.left = (sx0 - wc * vx0) * boxW + "px";
     idleCanvas.style.top = (sy0 - hc * vy0) * boxH + "px";
-    // 画素の数は、画面の細かさ（最大2倍）に合わせる。多すぎると、処理が重くなる
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // 画素の数は、画面の大きさ（CSSの1pxにつき1画素）まで下げて軽くする。細かくすると、処理が重くなる
+    const dpr = IDLE_CANVAS_SCALE;
     idleCanvas.width = Math.max(1, Math.round(cssW * dpr));
     idleCanvas.height = Math.max(1, Math.round(cssH * dpr));
   }
@@ -339,6 +342,7 @@
   function enterIdle() {
     if (!statusScreenActive() || document.hidden) return;
     idleWanted = true;
+    idleFinished = false;
     // 画面を下へスクロールしていると、キャラが見えない。先頭へもどして、動画が見えるようにする
     const statusScreen = document.getElementById("screen-status");
     if (statusScreen.scrollTop > 0) {
@@ -384,6 +388,12 @@
     idleVideo.hidden = false;
     idleCharacterImage.classList.add("is-idle-hidden");
   });
+  // 寛ぎ動画は1回だけ。最後まで流れたら静止画にもどり、次に触れるまでは、くり返さない
+  idleVideo.addEventListener("ended", () => {
+    if (!idleWanted) return;
+    idleFinished = true;
+    exitIdle();
+  });
   idleVideo.addEventListener("error", () => {
     // 先読み中（まだ流していない）に読み込めなかったときも、予備の動画に切りかえておく
     if (fallbackToLocalMedia(idleVideo) && idleWanted) idleVideo.play().catch(() => {});
@@ -423,7 +433,7 @@
         idleRemainingAtHide = idleWanted ? 0 : Math.max(0, IDLE_MS - (Date.now() - idleLastActivity));
       }
       stopIdle();
-    } else if (statusScreenActive()) {
+    } else if (statusScreenActive() && !idleFinished) {
       idleLastActivity = Date.now() - (IDLE_MS - idleRemainingAtHide);
       startIdleTimer(idleRemainingAtHide);
     }
