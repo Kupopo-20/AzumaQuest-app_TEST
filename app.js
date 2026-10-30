@@ -174,22 +174,31 @@
   });
 
   // ------------------------------------------------------------------
-  // ステータス画面の寛ぎ動画：15秒間（?idle=秒 で変更可）なにも触らないと、キャラが寛ぐ動画に切りかわる。
-  // 画面のどこかに触れると元のキャラ画像にもどる（寛ぎ中の最初のタッチは、ボタンなどを押さない）。
+  // ステータス画面の寛ぎ動画：15〜30秒（毎回ランダム。?idle=秒 で固定にもできる）なにも触らないと、
+  // キャラが寛ぐ動画に切りかわり、1回だけ流れる。流れおわったら静止画にもどり、また15〜30秒（ランダム）
+  // 操作がなければ、もう1回流れる（くり返す）。画面のどこかに触れると、元のキャラ画像にもどる。
   // ------------------------------------------------------------------
-  const IDLE_MS = (parseInt(new URLSearchParams(location.search).get("idle"), 10) || 15) * 1000;
+  const IDLE_FIXED_SEC = parseInt(new URLSearchParams(location.search).get("idle"), 10) || 0;
+  const IDLE_MIN_MS = 15 * 1000;
+  const IDLE_MAX_MS = 30 * 1000;
+  function pickIdleWaitMs() {
+    if (IDLE_FIXED_SEC) return IDLE_FIXED_SEC * 1000;
+    return IDLE_MIN_MS + Math.random() * (IDLE_MAX_MS - IDLE_MIN_MS);
+  }
+  let idleWaitMs = pickIdleWaitMs(); // 今回の待ち時間
+  // srcs: 動画のファイル。2つ以上あるときは、流すたびにランダムに1つ選ぶ（同じ動画が続けて出てもよい）。
   // key: true の動画は、緑の背景を抜いて（透明にして）表示する。静止画と同じオーラが付き、キャラの大きさ・位置も合わせられる。
   //   stillBox: 静止画の中で、キャラが占める範囲 [左, 上, 右, 下]（0〜1。画像の透明でない部分を測った値）
   //   videoBox: 動画の最初のコマで、キャラが占める範囲（同じ表し方）。この2つが重なるように、動画を拡大・移動する
   // key: false の動画は、背景つきのまま、静止画の枠にぴったり重ねる。
   const IDLE_VIDEO = {
     braver: {
-      src: "assets/idle-braver-key.mp4",
+      srcs: ["assets/idle-braver-key.mp4", "assets/idle-braver-key2.mp4", "assets/idle-braver-key3.mp4"],
       key: true,
       stillBox: [0.0179, 0.0154, 0.9724, 0.9846],
       videoBox: [0.179, 0.178, 0.814, 0.823],
     },
-    wizard: { src: "assets/idle-wizard.mp4", key: false },
+    wizard: { srcs: ["assets/idle-wizard.mp4"], key: false },
   };
   const idleVideo = document.getElementById("status-idle-video");
   const idleCanvas = document.getElementById("status-idle-canvas");
@@ -199,7 +208,6 @@
   let idleKeyed = false; // いま流している動画が、緑を抜いて表示する動画か
   let idleRenderToken = 0; // 描画の繰り返しを止めるための番号
   let idleRendering = false; // 緑を抜いた描画の最中か
-  let idleFinished = false; // 寛ぎ動画を最後まで流しおえた（次に触れるまで、くり返さない）
   let idleTimer = null;
   let idleWanted = false; // 寛ぎ動画を出したい状態（読み込み中を含む）
   let idleShown = false; // 動画が実際に映っている状態
@@ -212,30 +220,38 @@
   let idleLastActivity = Date.now(); // 最後に触れた（ステータス画面を開いた）時刻
 
   // 待ち時間を数えはじめる。remainingMs を渡すと、その残り時間だけ待つ（画面が消えていた時間の続き）
-  function startIdleTimer(remainingMs = IDLE_MS) {
+  function startIdleTimer(remainingMs = idleWaitMs) {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(enterIdle, Math.max(0, remainingMs));
   }
 
   // 触れた／画面を開いた時刻を記録して、0秒から数えなおす
   function restartIdleCount() {
-    idleFinished = false;
+    idleWaitMs = pickIdleWaitMs(); // 待ち時間は、そのつどランダムに決める
     idleLastActivity = Date.now();
     startIdleTimer();
     preloadIdleVideo();
   }
 
   // 動画を先に読み込んでおく（切りかえの瞬間に、回線が遅くて待たされないように）。再生はしない
+  let idleSrc = null; // 次に流す動画（複数あるときは、ランダムに1つ選ぶ）
+
+  // 次に流す動画をランダムに選ぶ（同じ動画が続けて出てもよい）
+  function chooseIdleSrc(cfg) {
+    return cfg.srcs[Math.floor(Math.random() * cfg.srcs.length)];
+  }
+
   function preloadIdleVideo() {
     const cfg = IDLE_VIDEO[state.character || "braver"];
+    if (!idleSrc || !cfg.srcs.includes(idleSrc)) idleSrc = chooseIdleSrc(cfg); // キャラが変わったときも選びなおす
     const cur = idleVideo.getAttribute("src") || "";
-    if (cur === media(cfg.src) || cur === cfg.src) return; // すでに読み込み中／済み（予備の assets/ に切りかえ済みも含む）
+    if (cur === media(idleSrc) || cur === idleSrc) return; // すでに読み込み中／済み（予備の assets/ に切りかえ済みも含む）
     idleKeyed = cfg.key;
     // キャンバスに描いて画素を読むため、別の場所（Cloudflare）の動画は「許可つき」で読み込む
     if (cfg.key) idleVideo.crossOrigin = "anonymous";
     else idleVideo.removeAttribute("crossorigin");
     idleVideo.preload = "auto";
-    idleVideo.src = media(cfg.src);
+    idleVideo.src = media(idleSrc);
     idleVideo.load();
   }
 
@@ -341,7 +357,6 @@
   function enterIdle() {
     if (!statusScreenActive() || document.hidden) return;
     idleWanted = true;
-    idleFinished = false;
     // 画面を下へスクロールしていると、キャラが見えない。先頭へもどして、動画が見えるようにする
     const statusScreen = document.getElementById("screen-status");
     if (statusScreen.scrollTop > 0) {
@@ -349,6 +364,7 @@
       statusScreen.scrollTo({ top: 0 });
     }
     preloadIdleVideo();
+    idleSrc = null; // 次の回は、また選びなおす（流しおえたあと／触ったあとの先読みで決まる）
     idleVideo.currentTime = 0;
     idleVideo.play().catch(() => {});
   }
@@ -387,11 +403,11 @@
     idleVideo.hidden = false;
     idleCharacterImage.classList.add("is-idle-hidden");
   });
-  // 寛ぎ動画は1回だけ。最後まで流れたら静止画にもどり、次に触れるまでは、くり返さない
+  // 寛ぎ動画は1回ずつ。最後まで流れたら静止画にもどり、そこからまた15〜30秒（ランダム）数えはじめる
   idleVideo.addEventListener("ended", () => {
     if (!idleWanted) return;
-    idleFinished = true;
     exitIdle();
+    restartIdleCount();
   });
   idleVideo.addEventListener("error", () => {
     // 先読み中（まだ流していない）に読み込めなかったときも、予備の動画に切りかえておく
@@ -426,16 +442,16 @@
   );
   // 画面が消えている間は、時間を止める。復帰したときは、消える直前に残っていた時間の続きから数える
   // （画面を点けるためのタッチはアプリには届かず、「触れた」には数えない）
-  let idleRemainingAtHide = IDLE_MS;
+  let idleRemainingAtHide = idleWaitMs;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       if (statusScreenActive()) {
         // すでに寛ぎ動画に入っていたなら、復帰してすぐ動画にもどす（残り0）
-        idleRemainingAtHide = idleWanted ? 0 : Math.max(0, IDLE_MS - (Date.now() - idleLastActivity));
+        idleRemainingAtHide = idleWanted ? 0 : Math.max(0, idleWaitMs - (Date.now() - idleLastActivity));
       }
       stopIdle();
-    } else if (statusScreenActive() && !idleFinished) {
-      idleLastActivity = Date.now() - (IDLE_MS - idleRemainingAtHide);
+    } else if (statusScreenActive()) {
+      idleLastActivity = Date.now() - (idleWaitMs - idleRemainingAtHide);
       startIdleTimer(idleRemainingAtHide);
     }
   });
