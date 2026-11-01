@@ -139,8 +139,13 @@
     bottomNav.classList.toggle("visible", ["status", "treasure", "map", "camera", "gallery"].includes(name));
     if (name === "gallery") renderGallery();
 
-    if (name === "map") showMapScreen();
-    else stopMapLocation();
+    if (name === "map") {
+      showMapScreen();
+      startMapBirds();
+    } else {
+      stopMapLocation();
+      stopMapBirds();
+    }
 
     // 音楽（オープニング動画）は最初の画面にいる間だけ流す
     if (name === "opening") {
@@ -159,7 +164,12 @@
     }
     if (name === "status") restartIdleCount();
     else stopIdle();
-    if (name === "treasure") renderTreasureList();
+    if (name === "treasure") {
+      renderTreasureList();
+      restartTreasureCount();
+    } else {
+      stopTreasure();
+    }
     if (name === "camera") startCamera();
     else stopCamera();
     if (name === "recovery") startRecoveryCountdown();
@@ -470,6 +480,206 @@
   });
 
   // ------------------------------------------------------------------
+  // たからばこ画面：なにも触らずに15〜30秒（毎回ランダム）たつと、まだ見つけていない宝箱のうち
+  // ランダムな1個が、動画のように動く（1回だけ）。動きおわったら、また15〜30秒（ランダム）待って、別の1個が動く。
+  // ステータス画面の寛ぎ動画と同じ考え方：画面のどこかに触れると止まり、待ち時間は数えなおす。
+  // 画面が消えている間は、時間を止める。緑の背景の動画を、キャンバスで緑を抜いて、宝箱の絵の上に重ねる。
+  // ------------------------------------------------------------------
+  const TREASURE_KEY = {
+    src: "assets/treasure-key.mp4",
+    // 動画の最初のコマで、宝箱が占める範囲 [左, 上, 右, 下]（0〜1）
+    videoBox: [0.11, 0.342, 0.892, 0.9],
+    // 静止画（assets/treasure-close.png, 199×147）の中で、宝箱が占める範囲 [左, 上, 右, 下]（画素の位置）
+    stillPx: [4, 9, 192, 139],
+    stillSize: [199, 147],
+  };
+  const treasureKeyVideo = document.getElementById("treasure-key-video");
+  let treasureTimer = null;
+  let treasureWaitMs = pickIdleWaitMs();
+  let treasureLastActivity = Date.now();
+  let treasureRemainingAtHide = treasureWaitMs;
+  let treasurePlaying = false; // 宝箱を動かしている最中か（読み込み中を含む）
+  let treasureRendering = false;
+  let treasureRenderToken = 0;
+  let treasureCanvas = null;
+  let treasureIconEl = null;
+
+  function treasureScreenActive() {
+    return document.getElementById("screen-treasure").classList.contains("active");
+  }
+
+  function preloadTreasureVideo() {
+    const cur = treasureKeyVideo.getAttribute("src") || "";
+    if (cur === media(TREASURE_KEY.src) || cur === TREASURE_KEY.src) return; // すでに読み込み中／済み（予備に切りかえ済みも含む）
+    treasureKeyVideo.crossOrigin = "anonymous"; // キャンバスで画素を読むため
+    treasureKeyVideo.preload = "auto";
+    treasureKeyVideo.src = media(TREASURE_KEY.src);
+    treasureKeyVideo.load();
+  }
+
+  function startTreasureTimer(remainingMs = treasureWaitMs) {
+    clearTimeout(treasureTimer);
+    treasureTimer = setTimeout(playTreasureEvent, Math.max(0, remainingMs));
+  }
+
+  // 触れた／画面を開いた／1回動きおわった：待ち時間を、ランダムに決めなおして数えはじめる
+  function restartTreasureCount() {
+    treasureWaitMs = pickIdleWaitMs();
+    treasureLastActivity = Date.now();
+    startTreasureTimer();
+    preloadTreasureVideo();
+  }
+
+  // 動かす宝箱を、まだ見つけていないもの（閉じた宝箱）から、ランダムに1個選ぶ。画面に見えているものを優先する
+  function pickTreasureTarget() {
+    const locked = [];
+    for (let i = 0; i < LEVEL_MAX; i++) if (!state.eventLevel[i]) locked.push(i);
+    if (!locked.length) return null;
+    const navTop = bottomNav.getBoundingClientRect().top;
+    const visible = locked.filter((i) => {
+      const r = document.getElementById(`treasure-icon-${i}`).getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= navTop;
+    });
+    const pool = visible.length ? visible : locked;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function playTreasureEvent() {
+    if (!treasureScreenActive() || document.hidden) return;
+    const idx = pickTreasureTarget();
+    if (idx === null) {
+      // すべて見つけたあとは、動かさない
+      treasureWaitMs = pickIdleWaitMs();
+      treasureLastActivity = Date.now();
+      startTreasureTimer();
+      return;
+    }
+    treasurePlaying = true;
+    treasureIconEl = document.getElementById(`treasure-icon-${idx}`);
+    preloadTreasureVideo();
+    treasureKeyVideo.currentTime = 0;
+    treasureKeyVideo.play().catch(() => {});
+  }
+
+  function endTreasureEvent() {
+    treasurePlaying = false;
+    treasureRendering = false;
+    treasureRenderToken++; // 描画の繰り返しを止める
+    treasureKeyVideo.pause();
+    if (treasureCanvas) {
+      treasureCanvas.remove();
+      treasureCanvas = null;
+    }
+    if (treasureIconEl) {
+      treasureIconEl.classList.remove("is-key-hidden");
+      treasureIconEl = null;
+    }
+  }
+
+  function stopTreasure() {
+    clearTimeout(treasureTimer);
+    treasureTimer = null;
+    endTreasureEvent();
+  }
+
+  // キャンバスの位置と大きさを、静止画の宝箱に重なるように決める（宝箱の絵の中での位置を、動画の中の位置に合わせる）
+  function layoutTreasureCanvas(icon) {
+    const bw = icon.clientWidth, bh = icon.clientHeight;
+    const [nw, nh] = TREASURE_KEY.stillSize;
+    const s = Math.min(bw / nw, bh / nh); // 絵は、枠の中に収まるように縮められる（object-fit: contain）
+    const dw = nw * s, dh = nh * s;
+    const ox = (bw - dw) / 2, oy = (bh - dh) / 2;
+    const [px0, py0, px1, py1] = TREASURE_KEY.stillPx;
+    const sx0 = (ox + px0 * s) / bw, sx1 = (ox + px1 * s) / bw;
+    const sy0 = (oy + py0 * s) / bh, sy1 = (oy + py1 * s) / bh;
+    const [vx0, vy0, vx1, vy1] = TREASURE_KEY.videoBox;
+    const wc = (sx1 - sx0) / (vx1 - vx0);
+    const hc = (sy1 - sy0) / (vy1 - vy0);
+    const cssW = bw * wc, cssH = bh * hc;
+    const c = treasureCanvas;
+    c.style.width = cssW + "px";
+    c.style.height = cssH + "px";
+    c.style.left = icon.offsetLeft + (sx0 - wc * vx0) * bw + "px";
+    c.style.top = icon.offsetTop + (sy0 - hc * vy0) * bh + "px";
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.max(1, Math.round(cssW * dpr));
+    c.height = Math.max(1, Math.round(cssH * dpr));
+  }
+
+  function startTreasureRender() {
+    const icon = treasureIconEl;
+    if (!icon) return;
+    const token = ++treasureRenderToken;
+    treasureCanvas = document.createElement("canvas");
+    treasureCanvas.className = "treasure-key-canvas";
+    treasureCanvas.hidden = true;
+    icon.parentElement.appendChild(treasureCanvas);
+    layoutTreasureCanvas(icon);
+    const ctx = treasureCanvas.getContext("2d", { willReadFrequently: true });
+    let shown = false;
+    const draw = () => {
+      if (token !== treasureRenderToken || !treasurePlaying) return;
+      if (treasureKeyVideo.readyState >= 2) {
+        const w = treasureCanvas.width, h = treasureCanvas.height;
+        ctx.drawImage(treasureKeyVideo, 0, 0, w, h);
+        let frame;
+        try {
+          frame = ctx.getImageData(0, 0, w, h);
+        } catch (e) {
+          // 画素を読めない（許可つきで読み込めていない）ときは、予備の動画に切りかえる
+          if (fallbackToLocalMedia(treasureKeyVideo)) treasureKeyVideo.play().catch(() => {});
+          return;
+        }
+        keyIdleFrame(frame.data, w, h);
+        ctx.putImageData(frame, 0, 0);
+        if (!shown) {
+          shown = true;
+          treasureCanvas.hidden = false;
+          icon.classList.add("is-key-hidden");
+        }
+      }
+      if (treasureKeyVideo.requestVideoFrameCallback) treasureKeyVideo.requestVideoFrameCallback(draw);
+      else requestAnimationFrame(draw);
+    };
+    draw();
+  }
+
+  treasureKeyVideo.addEventListener("playing", () => {
+    if (!treasurePlaying || treasureRendering) return;
+    treasureRendering = true;
+    startTreasureRender();
+  });
+  treasureKeyVideo.addEventListener("ended", () => {
+    if (!treasurePlaying) return;
+    endTreasureEvent();
+    restartTreasureCount();
+  });
+  treasureKeyVideo.addEventListener("error", () => {
+    // 先読み中に読み込めなかったときも、予備の動画に切りかえておく
+    if (fallbackToLocalMedia(treasureKeyVideo) && treasurePlaying) treasureKeyVideo.play().catch(() => {});
+  });
+
+  function onTreasureActivity() {
+    if (!treasureScreenActive()) return;
+    if (treasurePlaying) endTreasureEvent();
+    restartTreasureCount();
+  }
+  ["pointerdown", "keydown", "wheel", "scroll"].forEach((type) => {
+    document.addEventListener(type, onTreasureActivity, { capture: true, passive: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (treasureScreenActive()) {
+        treasureRemainingAtHide = treasurePlaying ? 0 : Math.max(0, treasureWaitMs - (Date.now() - treasureLastActivity));
+      }
+      stopTreasure();
+    } else if (treasureScreenActive()) {
+      treasureLastActivity = Date.now() - (treasureWaitMs - treasureRemainingAtHide);
+      startTreasureTimer(treasureRemainingAtHide);
+    }
+  });
+
+  // ------------------------------------------------------------------
   // ちず画面：絵の地図（あずまガルド_Map）の上に、たからばこ・クエスト・現在地を表示する。
   // 取得したたからばこは開いた宝箱＋チェック、勲章をとったクエストは薄い表示＋チェックにする。
   // 位置は map-data.js の緯度・経度から、同じ場所を結んだ変換式で絵の座標に直して置く。
@@ -686,6 +896,109 @@
     closeMapInfo();
     if (firstTime) fitMapToImage();
   }
+
+  // ------------------------------------------------------------------
+  // 鳥の影：ちず画面を開いている間、120〜180秒に1回（毎回ランダム。?bird=秒 で固定にもできる）、
+  // 小鳥の群れ（1〜5羽。数は毎回ランダム）の影が、地図の上を横切る。
+  // 地図の操作のじゃまはしない（タッチは、下の地図にそのまま届く）。
+  // ------------------------------------------------------------------
+  const BIRD_FIXED_SEC = parseInt(new URLSearchParams(location.search).get("bird"), 10) || 0;
+  const mapBirdLayer = document.getElementById("map-bird-layer");
+  let mapBirdTimer = null;
+
+  // 鳥の形（上から見た影。右向き。viewBox 120×100、体の中心は (62,50)）。羽は上半分だけ描いて、下は反転して使う
+  // 小鳥だけ。数は、飛ぶたびに countMin〜countMax 羽のランダム
+  const BIRD = {
+    width: 0.075, // 地図の幅に対する、羽を広げた大きさ（長さ）の割合
+    speed: 150, // 飛ぶ速さ（CSSのpx／秒）
+    flap: 0.2, // はばたき1回の秒数（小さいほど速い）
+    flapMin: 0.35,
+    countMin: 1,
+    countMax: 5,
+    body:
+      '<ellipse cx="62" cy="50" rx="16" ry="6"/><circle cx="80" cy="50" r="5.5"/><polygon points="85,49 93,50 85,51"/>' +
+      '<polygon points="46,47 22,44 22,56 46,53"/>',
+    wing: "M66 45 C60 30 46 18 34 14 C40 26 42 36 48 45 Z",
+  };
+
+  function createBirdElement(kind, sizePx) {
+    const el = document.createElement("div");
+    el.className = "map-bird";
+    el.style.width = sizePx + "px";
+    el.style.height = (sizePx * 100) / 120 + "px";
+    el.style.setProperty("--flap", kind.flap + "s");
+    el.style.setProperty("--flap-min", String(kind.flapMin));
+    el.innerHTML =
+      '<svg viewBox="0 0 120 100" aria-hidden="true">' +
+      kind.body +
+      '<g class="bird-wings"><path d="' + kind.wing + '"/>' +
+      '<path d="' + kind.wing + '" transform="translate(0 100) scale(1 -1)"/></g></svg>';
+    // はばたきのタイミングを、1羽ずつずらす
+    el.querySelector(".bird-wings").style.animationDelay = -Math.random() * kind.flap + "s";
+    return el;
+  }
+
+  // 鳥を1回（群れなら数羽）飛ばす。向きはランダムで、地図の端から端へ、少しカーブしながら横切る
+  function spawnMapBirds() {
+    const W = mapBirdLayer.clientWidth;
+    const H = mapBirdLayer.clientHeight;
+    if (!W || !H) return;
+    const kind = BIRD;
+    const count = kind.countMin + Math.floor(Math.random() * (kind.countMax - kind.countMin + 1));
+    const size = W * kind.width;
+    const theta = Math.random() * Math.PI * 2;
+    const dx = Math.cos(theta), dy = Math.sin(theta); // 進む向き
+    const px = -dy, py = dx; // 進む向きと直角（横）
+    const cx = W * (0.3 + Math.random() * 0.4), cy = H * (0.3 + Math.random() * 0.4);
+    const half = Math.hypot(W, H) / 2 + size * 2; // 画面の外から外まで
+    const bend = (Math.random() - 0.5) * 0.18 * Math.min(W, H); // まっすぐではなく、少し曲がる
+    const duration = ((half * 2) / kind.speed) * 1000;
+    const deg = (theta * 180) / Math.PI;
+    for (let i = 0; i < count; i++) {
+      const el = createBirdElement(kind, size);
+      mapBirdLayer.appendChild(el);
+      // 群れは、うしろへずらして、左右にも少し広げる
+      const back = i * size * 1.7, side = (i === 0 ? 0 : i % 2 ? 1 : -1) * size * 1.3;
+      const ox = -dx * back + px * side, oy = -dy * back + py * side;
+      const at = (t, lateral) => {
+        const x = cx + dx * half * t + px * lateral + ox - el.offsetWidth / 2;
+        const y = cy + dy * half * t + py * lateral + oy - el.offsetHeight / 2;
+        return `translate(${x}px, ${y}px) rotate(${deg}deg)`;
+      };
+      const anim = el.animate(
+        [{ transform: at(-1, 0) }, { transform: at(0, bend) }, { transform: at(1, 0) }],
+        { duration, easing: "linear", fill: "forwards" }
+      );
+      anim.onfinish = () => el.remove();
+    }
+  }
+
+  function nextBirdDelayMs() {
+    return BIRD_FIXED_SEC ? BIRD_FIXED_SEC * 1000 : (120 + Math.random() * 60) * 1000; // 120〜180秒に1回
+  }
+
+  function scheduleMapBird() {
+    clearTimeout(mapBirdTimer);
+    mapBirdTimer = setTimeout(() => {
+      spawnMapBirds();
+      scheduleMapBird();
+    }, nextBirdDelayMs());
+  }
+
+  function startMapBirds() {
+    scheduleMapBird();
+  }
+
+  function stopMapBirds() {
+    clearTimeout(mapBirdTimer);
+    mapBirdTimer = null;
+    mapBirdLayer.textContent = ""; // 飛んでいる最中の鳥も、消す
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopMapBirds();
+    else if (document.getElementById("screen-map").classList.contains("active")) startMapBirds();
+  });
 
   // 現在地：ボタンを押すと位置情報の許可を求め、青い点を表示して、その場所へ地図を寄せる
   function onMapPosition(pos) {

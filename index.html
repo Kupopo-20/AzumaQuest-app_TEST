@@ -133,6 +133,8 @@
   <h1 class="dq-title">たからばこ</h1>
   <p id="treasure-hint-message" class="treasure-hint"></p>
   <div id="treasure-grid" class="treasure-grid"></div>
+  <!-- まだ見つけていない宝箱が、ときどき動く動画の材料（画面には出さず、1コマずつキャンバスに描く） -->
+  <video id="treasure-key-video" class="treasure-key-video" muted playsinline preload="none"></video>
 </section>
 
 <!-- ==================== どうが一覧（かいほうした動画を見返す） ==================== -->
@@ -152,6 +154,8 @@
   <h1 class="dq-title">ちず</h1>
   <div class="map-frame-wrap">
     <div id="map-canvas" class="map-canvas"></div>
+    <!-- 鳥の影が、ときどき地図の上を横切る（操作のじゃまはしない） -->
+    <div id="map-bird-layer" class="map-bird-layer" aria-hidden="true"></div>
     <button id="btn-map-reset" class="btn-map-reset">ぜんたい</button>
     <button id="btn-map-locate" class="btn-map-locate" aria-label="げんざいち">
       <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>

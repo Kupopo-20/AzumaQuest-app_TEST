@@ -526,6 +526,7 @@ button {
   margin-top: 12px;
 }
 .treasure-item {
+  position: relative; /* 動く宝箱のキャンバスを、宝箱の上に重ねるため */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -545,8 +546,10 @@ button {
 }
 .treasure-item:not(.is-locked) .treasure-num { color: var(--dq-gold); }
 .treasure-item.is-locked .treasure-icon-img { opacity: 0.55; }
+.treasure-item.is-locked .treasure-key-canvas { opacity: 0.55; }
 .treasure-item.is-locked .treasure-num { opacity: 0.5; }
-.treasure-item.is-locked.is-next .treasure-icon-img {
+.treasure-item.is-locked.is-next .treasure-icon-img,
+.treasure-item.is-locked.is-next .treasure-key-canvas {
   opacity: 1;
   animation: treasure-next-glow 3.2s ease-in-out infinite;
 }
@@ -1265,4 +1268,60 @@ button {
   30%, 45% { background: transparent; }
   60%, 75% { background: rgba(210, 20, 20, 0.75); }
   100% { background: transparent; }
+}
+
+/* ---------- ちず画面：ときどき横切る鳥の影 ---------- */
+/* Leafletの部品のz-index（マーク600・ふきだし700・ボタン類1000）の間に入れる：マークの上、ボタンの下 */
+.map-bird-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 750;
+}
+.map-bird {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+.map-bird svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: #000;
+  opacity: 0.3;
+  filter: blur(1.3px);
+}
+/* はばたき：上から見た羽が、上下に動いて、幅がのびちぢみする（羽の根もとを中心に） */
+.map-bird .bird-wings {
+  transform-box: view-box;
+  transform-origin: 62px 50px;
+  animation: bird-flap var(--flap, 0.4s) ease-in-out infinite alternate;
+}
+@keyframes bird-flap {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(var(--flap-min, 0.4)); }
+}
+
+/* ---------- たからばこ画面：まだ見つけていない宝箱が、ときどき動く ---------- */
+.treasure-key-video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+/* 緑を抜いたキャンバス。位置と大きさは、静止画の宝箱に重なるように app.js で決める */
+.treasure-key-canvas {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(2px 2px 0 #000);
+}
+.treasure-icon-img.is-key-hidden {
+  opacity: 0 !important;
 }
