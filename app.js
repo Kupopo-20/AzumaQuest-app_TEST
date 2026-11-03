@@ -184,13 +184,13 @@
   });
 
   // ------------------------------------------------------------------
-  // ステータス画面の寛ぎ動画：15〜30秒（毎回ランダム。?idle=秒 で固定にもできる）なにも触らないと、
-  // キャラが寛ぐ動画に切りかわり、1回だけ流れる。流れおわったら静止画にもどり、また15〜30秒（ランダム）
+  // ステータス画面の寛ぎ動画：30〜45秒（毎回ランダム。?idle=秒 で固定にもできる）なにも触らないと、
+  // キャラが寛ぐ動画に切りかわり、1回だけ流れる。流れおわったら静止画にもどり、また30〜45秒（ランダム）
   // 操作がなければ、もう1回流れる（くり返す）。画面のどこかに触れると、元のキャラ画像にもどる。
   // ------------------------------------------------------------------
   const IDLE_FIXED_SEC = parseInt(new URLSearchParams(location.search).get("idle"), 10) || 0;
-  const IDLE_MIN_MS = 15 * 1000;
-  const IDLE_MAX_MS = 30 * 1000;
+  const IDLE_MIN_MS = 30 * 1000;
+  const IDLE_MAX_MS = 45 * 1000;
   function pickIdleWaitMs() {
     if (IDLE_FIXED_SEC) return IDLE_FIXED_SEC * 1000;
     return IDLE_MIN_MS + Math.random() * (IDLE_MAX_MS - IDLE_MIN_MS);
@@ -378,6 +378,13 @@
 
   function enterIdle() {
     if (!statusScreenActive() || document.hidden) return;
+    if (idleWanted) {
+      // まだ動いている最中に次の時間になったときは、動かさず、待ち時間だけ数えなおす
+      idleWaitMs = pickIdleWaitMs();
+      idleLastActivity = Date.now();
+      startIdleTimer();
+      return;
+    }
     idleWanted = true;
     // 画面を下へスクロールしていると、キャラが見えない。先頭へもどして、動画が見えるようにする
     const statusScreen = document.getElementById("screen-status");
@@ -390,6 +397,10 @@
     idleSrc = null; // 次の回は、また選びなおす（流しおえたあと／触ったあとの先読みで決まる）
     idleVideo.currentTime = 0;
     idleVideo.play().catch(() => {});
+    // 動き始めたら、次の待ち時間を数えはじめる（動きおわるのを待たない）
+    idleWaitMs = pickIdleWaitMs();
+    idleLastActivity = Date.now();
+    startIdleTimer();
   }
 
   function exitIdle() {
@@ -426,11 +437,11 @@
     idleVideo.hidden = false;
     idleCharacterImage.classList.add("is-idle-hidden");
   });
-  // 寛ぎ動画は1回ずつ。最後まで流れたら静止画にもどり、そこからまた15〜30秒（ランダム）数えはじめる
+  // 寛ぎ動画は1回ずつ。最後まで流れたら静止画にもどる。次の待ち時間は、動き始めたときから数えている
   idleVideo.addEventListener("ended", () => {
     if (!idleWanted) return;
     exitIdle();
-    restartIdleCount();
+    preloadIdleVideo(); // 次に流す動画を、先に読み込んでおく
   });
   idleVideo.addEventListener("error", () => {
     // 先読み中（まだ流していない）に読み込めなかったときも、予備の動画に切りかえておく
@@ -470,7 +481,7 @@
     if (document.hidden) {
       if (statusScreenActive()) {
         // すでに寛ぎ動画に入っていたなら、復帰してすぐ動画にもどす（残り0）
-        idleRemainingAtHide = idleWanted ? 0 : Math.max(0, idleWaitMs - (Date.now() - idleLastActivity));
+        idleRemainingAtHide = Math.max(0, idleWaitMs - (Date.now() - idleLastActivity));
       }
       stopIdle();
     } else if (statusScreenActive()) {
@@ -480,8 +491,8 @@
   });
 
   // ------------------------------------------------------------------
-  // たからばこ画面：なにも触らずに15〜30秒（毎回ランダム）たつと、まだ見つけていない宝箱のうち
-  // ランダムな1個が、動画のように動く（1回だけ）。動きおわったら、また15〜30秒（ランダム）待って、別の1個が動く。
+  // たからばこ画面：なにも触らずに45〜75秒（毎回ランダム）たつと、まだ見つけていない宝箱のうち
+  // ランダムな1個が、動画のように動く（1回だけ）。動きおわったら、また45〜75秒（ランダム）待って、別の1個が動く。
   // ステータス画面の寛ぎ動画と同じ考え方：画面のどこかに触れると止まり、待ち時間は数えなおす。
   // 画面が消えている間は、時間を止める。緑の背景の動画を、キャンバスで緑を抜いて、宝箱の絵の上に重ねる。
   // ------------------------------------------------------------------
@@ -493,9 +504,16 @@
     stillPx: [4, 9, 192, 139],
     stillSize: [199, 147],
   };
+  // 宝箱の待ち時間：45〜75秒（毎回ランダム。?idle=秒 で固定にもできる）
+  const TREASURE_MIN_MS = 45 * 1000;
+  const TREASURE_MAX_MS = 75 * 1000;
+  function pickTreasureWaitMs() {
+    if (IDLE_FIXED_SEC) return IDLE_FIXED_SEC * 1000;
+    return TREASURE_MIN_MS + Math.random() * (TREASURE_MAX_MS - TREASURE_MIN_MS);
+  }
   const treasureKeyVideo = document.getElementById("treasure-key-video");
   let treasureTimer = null;
-  let treasureWaitMs = pickIdleWaitMs();
+  let treasureWaitMs = pickTreasureWaitMs();
   let treasureLastActivity = Date.now();
   let treasureRemainingAtHide = treasureWaitMs;
   let treasurePlaying = false; // 宝箱を動かしている最中か（読み込み中を含む）
@@ -524,7 +542,7 @@
 
   // 触れた／画面を開いた／1回動きおわった：待ち時間を、ランダムに決めなおして数えはじめる
   function restartTreasureCount() {
-    treasureWaitMs = pickIdleWaitMs();
+    treasureWaitMs = pickTreasureWaitMs();
     treasureLastActivity = Date.now();
     startTreasureTimer();
     preloadTreasureVideo();
@@ -546,10 +564,17 @@
 
   function playTreasureEvent() {
     if (!treasureScreenActive() || document.hidden) return;
+    if (treasurePlaying) {
+      // まだ動いている最中に次の時間になったときは、動かさず、待ち時間だけ数えなおす
+      treasureWaitMs = pickTreasureWaitMs();
+      treasureLastActivity = Date.now();
+      startTreasureTimer();
+      return;
+    }
     const idx = pickTreasureTarget();
     if (idx === null) {
       // すべて見つけたあとは、動かさない
-      treasureWaitMs = pickIdleWaitMs();
+      treasureWaitMs = pickTreasureWaitMs();
       treasureLastActivity = Date.now();
       startTreasureTimer();
       return;
@@ -559,6 +584,10 @@
     preloadTreasureVideo();
     treasureKeyVideo.currentTime = 0;
     treasureKeyVideo.play().catch(() => {});
+    // 動き始めたら、次の待ち時間を数えはじめる（動きおわるのを待たない）
+    treasureWaitMs = pickTreasureWaitMs();
+    treasureLastActivity = Date.now();
+    startTreasureTimer();
   }
 
   function endTreasureEvent() {
@@ -651,8 +680,7 @@
   });
   treasureKeyVideo.addEventListener("ended", () => {
     if (!treasurePlaying) return;
-    endTreasureEvent();
-    restartTreasureCount();
+    endTreasureEvent(); // 次の待ち時間は、動き始めたときから数えている
   });
   treasureKeyVideo.addEventListener("error", () => {
     // 先読み中に読み込めなかったときも、予備の動画に切りかえておく
@@ -670,7 +698,7 @@
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       if (treasureScreenActive()) {
-        treasureRemainingAtHide = treasurePlaying ? 0 : Math.max(0, treasureWaitMs - (Date.now() - treasureLastActivity));
+        treasureRemainingAtHide = Math.max(0, treasureWaitMs - (Date.now() - treasureLastActivity));
       }
       stopTreasure();
     } else if (treasureScreenActive()) {
@@ -811,7 +839,7 @@
         openMapInfo(
           opened ? TREASURE_ICON.open : TREASURE_ICON.closed,
           `${t.n}ばん のたからばこ`,
-          opened ? "みつけたよ！" : "まだ みつけていないよ。"
+          (opened ? "みつけたよ！" : "まだ みつけていないよ。") + (t.comment ? "\n" + t.comment : "")
         );
       });
       mapMarkers.push({ marker, icon: () => treasurePinIcon(t.n) });
@@ -898,7 +926,7 @@
   }
 
   // ------------------------------------------------------------------
-  // 鳥の影：ちず画面を開いている間、120〜180秒に1回（毎回ランダム。?bird=秒 で固定にもできる）、
+  // 鳥の影：ちず画面を開いている間、10〜120秒に1回（毎回ランダム。?bird=秒 で固定にもできる）、
   // 小鳥の群れ（1〜5羽。数は毎回ランダム）の影が、地図の上を横切る。
   // 地図の操作のじゃまはしない（タッチは、下の地図にそのまま届く）。
   // ------------------------------------------------------------------
@@ -974,7 +1002,7 @@
   }
 
   function nextBirdDelayMs() {
-    return BIRD_FIXED_SEC ? BIRD_FIXED_SEC * 1000 : (120 + Math.random() * 60) * 1000; // 120〜180秒に1回
+    return BIRD_FIXED_SEC ? BIRD_FIXED_SEC * 1000 : (10 + Math.random() * 110) * 1000; // 10〜120秒に1回
   }
 
   function scheduleMapBird() {
