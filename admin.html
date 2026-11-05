@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>うんえい かんり（あずま保育園クエスト）</title>
+<title>運営管理（あずま保育園クエスト）</title>
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
 <!-- ============ ログイン ============ -->
 <section id="login-view" class="login">
-  <h1>うんえい かんり</h1>
+  <h1>運営管理</h1>
   <p class="login-note">運営メンバー専用の画面です。</p>
   <form id="login-form" autocomplete="on">
     <label>メールアドレス
@@ -28,39 +28,39 @@
 <!-- ============ 管理画面 ============ -->
 <div id="main-view" hidden>
   <header class="topbar">
-    <h1>みまもり（あずま保育園クエスト）</h1>
+    <h1>見守り（あずま保育園クエスト）</h1>
     <div class="topbar-actions">
       <span id="updated-at" class="updated-at">-</span>
-      <button id="btn-refresh" class="btn">いま 更新</button>
+      <button id="btn-refresh" class="btn">今すぐ更新</button>
       <button id="btn-csv" class="btn">CSVを保存</button>
       <button id="btn-logout" class="btn">ログアウト</button>
     </div>
   </header>
 
-  <section class="summary" aria-label="まとめ">
-    <div class="stat"><span class="stat-num" id="stat-total">0</span><span class="stat-label">さんかしゃ</span></div>
-    <div class="stat"><span class="stat-num" id="stat-active">0</span><span class="stat-label">いま あそんでいる<small>（10分いない）</small></span></div>
-    <div class="stat"><span class="stat-num" id="stat-boss">0</span><span class="stat-label">まおうを たおした</span></div>
+  <section class="summary" aria-label="サマリー">
+    <div class="stat"><span class="stat-num" id="stat-total">0</span><span class="stat-label">参加者</span></div>
+    <div class="stat"><span class="stat-num" id="stat-active">0</span><span class="stat-label">今あそんでいる<small>（10分以内に動きがあった人）</small></span></div>
+    <div class="stat"><span class="stat-num" id="stat-boss">0</span><span class="stat-label">まおうを倒した</span></div>
     <div class="stat"><span class="stat-num" id="stat-ending">0</span><span class="stat-label">エンディング</span></div>
-    <div class="stat"><span class="stat-num" id="stat-avg">0</span><span class="stat-label">へいきん レベル</span></div>
-    <div class="stat stat-warn"><span class="stat-num" id="stat-idle">0</span><span class="stat-label">30分いじょう うごいていない<small>（クリア前）</small></span></div>
+    <div class="stat"><span class="stat-num" id="stat-avg">0</span><span class="stat-label">平均レベル</span></div>
+    <div class="stat stat-warn"><span class="stat-num" id="stat-idle">0</span><span class="stat-label">30分以上 動いていない<small>（クリア前）</small></span></div>
   </section>
 
   <section class="controls">
-    <input id="search" type="search" placeholder="なまえで さがす" aria-label="なまえで さがす">
-    <select id="sort" aria-label="ならびかえ">
-      <option value="seen">さいきん うごいた じゅん</option>
-      <option value="level">レベルが たかい じゅん</option>
-      <option value="levelAsc">レベルが ひくい じゅん</option>
-      <option value="name">なまえ じゅん</option>
-      <option value="created">はじめた じゅん</option>
+    <input id="search" type="search" placeholder="名前で検索" aria-label="名前で検索">
+    <select id="sort" aria-label="並べ替え">
+      <option value="seen">最近動いた順</option>
+      <option value="level">レベルが高い順</option>
+      <option value="levelAsc">レベルが低い順</option>
+      <option value="name">名前順</option>
+      <option value="created">開始が早い順</option>
     </select>
-    <select id="filter" aria-label="しぼりこみ">
-      <option value="all">ぜんいん</option>
-      <option value="active">いま あそんでいる</option>
-      <option value="idle">30分いじょう うごいていない（クリア前）</option>
-      <option value="boss">まおうを たおした</option>
-      <option value="notclear">まだ クリアしていない</option>
+    <select id="filter" aria-label="絞り込み">
+      <option value="all">全員</option>
+      <option value="active">今あそんでいる</option>
+      <option value="idle">30分以上 動いていない（クリア前）</option>
+      <option value="boss">まおうを倒した</option>
+      <option value="notclear">まだクリアしていない</option>
     </select>
   </section>
 
@@ -68,9 +68,9 @@
   <div id="list" class="list"></div>
 
   <section class="danger-zone">
-    <h2>イベントのあと</h2>
-    <p>さんかしゃの データを、ぜんぶ 消します（もとにもどせません）。</p>
-    <button id="btn-delete-all" class="btn btn-danger">データを ぜんぶ 消す</button>
+    <h2>イベント終了後</h2>
+    <p>参加者のデータをすべて削除します（元に戻せません）。</p>
+    <button id="btn-delete-all" class="btn btn-danger">データをすべて削除</button>
   </section>
 </div>
 

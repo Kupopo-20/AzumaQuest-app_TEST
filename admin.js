@@ -10,9 +10,9 @@
   const MEDAL_MAX = 4;
   // クエスト（勲章）：番号は、アプリの勲章の番号（0:あか 1:あお 2:みどり 3:ピンク）と同じ
   const QUESTS = [
-    { color: "あか", monster: "ガーゴイル" },
-    { color: "あお", monster: "ピラニアン" },
-    { color: "みどり", monster: "サーペント" },
+    { color: "赤", monster: "ガーゴイル" },
+    { color: "青", monster: "ピラニアン" },
+    { color: "緑", monster: "サーペント" },
     { color: "ピンク", monster: "アビスバイク" },
   ];
 
@@ -24,7 +24,7 @@
   const listMessage = $("list-message");
 
   if (!cfg || !window.supabase) {
-    loginMessage.textContent = "接続の設定が読み込めませんでした。";
+    loginMessage.textContent = "接続の設定を読み込めませんでした。";
     loginMessage.classList.add("error");
     return;
   }
@@ -74,9 +74,9 @@
       const code = error.code || "";
       loginMessage.textContent =
         code === "invalid_credentials"
-          ? "メールアドレスか、パスワードが、ちがいます。"
+          ? "メールアドレスかパスワードが違います。"
           : code === "email_not_confirmed"
-          ? "このアカウントは、メールの確認が終わっていません。Supabaseの Authentication → Users で、このユーザーの「Confirm」をしてください。"
+          ? "このアカウントはメールの確認が済んでいません。Supabase の Authentication → Users で、このユーザーを「Confirm」してください。"
           : "ログインできませんでした（" + (code || error.message || "不明なエラー") + "）。";
       button.disabled = false;
       return;
@@ -84,7 +84,7 @@
     const ok = await enter();
     if (!ok) {
       loginMessage.classList.add("error");
-      loginMessage.textContent = "このアカウントは、運営メンバーとして登録されていません。";
+      loginMessage.textContent = "このアカウントは運営メンバーとして登録されていません。";
     } else {
       loginMessage.textContent = "";
       $("login-password").value = "";
@@ -114,7 +114,7 @@
     loading = false;
     if (error) {
       listMessage.classList.add("error");
-      listMessage.textContent = "データを読み込めませんでした。しばらくしてから、「いま 更新」を押してください。";
+      listMessage.textContent = "データを読み込めませんでした。しばらくしてから「今すぐ更新」を押してください。";
       return;
     }
     listMessage.classList.remove("error");
@@ -159,7 +159,7 @@
     const st = stateOf(p);
     const row = el("div", "row" + (st.cleared ? " is-cleared" : "") + (st.active ? " is-active" : "") + (st.idle ? " is-idle" : ""));
 
-    const name = el("div", "c-name", p.name || "（なまえなし）");
+    const name = el("div", "c-name", p.name || "（名前なし）");
     const small = el("small", "", charName(p.character));
     name.appendChild(small);
 
@@ -182,14 +182,14 @@
       medals.appendChild(s);
     }
     meta.appendChild(medals);
-    meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "かくしつうろ"));
+    meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "隠し通路"));
     meta.appendChild(el("span", "tag" + (p.quiz_won ? " on" : ""), "まおう"));
     meta.appendChild(el("span", "tag" + (p.ending_seen ? " on" : ""), "エンディング"));
     meta.appendChild(el("span", "code", "コード " + (p.restore_code || "")));
 
     const del = el("button", "c-del", "✕");
     del.type = "button";
-    del.title = "この人のデータを消す";
+    del.title = "この人のデータを削除";
     del.addEventListener("click", () => deleteOne(p));
 
     // クエスト：クリアしたものだけ、勲章の色がつく
@@ -207,10 +207,10 @@
     const levels = Array.isArray(p.eventLevel) ? p.eventLevel : [];
     const foundCount = levels.filter(Boolean).length;
     const chests = el("div", "chests");
-    chests.appendChild(el("span", "extra-label", "たからばこ " + foundCount + " / " + LEVEL_MAX));
+    chests.appendChild(el("span", "extra-label", "宝箱 " + foundCount + " / " + LEVEL_MAX));
     for (let n = 1; n <= LEVEL_MAX; n++) {
       const c = el("span", "chest" + (levels[n - 1] ? " on" : ""), String(n));
-      c.title = n + "ばん" + (levels[n - 1] ? "：見つけた" : "：まだ");
+      c.title = n + "番" + (levels[n - 1] ? "：見つけた" : "：まだ");
       chests.appendChild(c);
     }
     extra.append(quests, chests);
@@ -268,7 +268,7 @@
     list.forEach((p) => listEl.appendChild(rowFor(p)));
     if (!list.length) {
       listMessage.classList.remove("error");
-      listMessage.textContent = total ? "条件に合う人は、いません。" : "まだ、さんかしゃは、いません。";
+      listMessage.textContent = total ? "条件に合う人はいません。" : "まだ参加者はいません。";
     } else if (!listMessage.classList.contains("error")) {
       listMessage.textContent = "";
     }
@@ -279,7 +279,7 @@
 
   // ---------- CSV ----------
   $("btn-csv").addEventListener("click", () => {
-    const head = ["なまえ", "キャラ", "レベル", "勲章", "クリアしたクエスト", "見つけた宝箱", "かくしつうろ", "まおう", "エンディング", "ひきつぎコード", "はじめた", "最後に動いた"];
+    const head = ["名前", "キャラ", "レベル", "勲章", "クリアしたクエスト", "見つけた宝箱", "隠し通路", "まおう", "エンディング", "引き継ぎコード", "開始日時", "最終アクセス"];
     const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
     const fmt = (iso) => new Date(iso).toLocaleString("ja-JP");
     const lines = [head.map(q).join(",")];
@@ -289,7 +289,7 @@
           p.name, charName(p.character), p.level_count, p.medal_count,
           (Array.isArray(p.eventMedal) ? p.eventMedal : []).map((v, i) => (v ? QUESTS[i].color : "")).filter(Boolean).join("・"),
           (Array.isArray(p.eventLevel) ? p.eventLevel : []).map((v, i) => (v ? i + 1 : "")).filter(Boolean).join(" "),
-          p.last_quest_pass ? "はい" : "", p.quiz_won ? "はい" : "", p.ending_seen ? "はい" : "",
+          p.last_quest_pass ? "○" : "", p.quiz_won ? "○" : "", p.ending_seen ? "○" : "",
           p.restore_code, fmt(p.created_at), fmt(p.last_seen_at),
         ].map(q).join(",")
       );
@@ -306,10 +306,10 @@
 
   // ---------- 消す ----------
   async function deleteOne(p) {
-    if (!confirm((p.name || "（なまえなし）") + " さんのデータを消します。よろしいですか？\n（もとにもどせません）")) return;
+    if (!confirm((p.name || "（名前なし）") + " さんのデータを削除します。よろしいですか？\n（元に戻せません）")) return;
     const { error } = await client.from("players").delete().eq("id", p.id);
     if (error) {
-      alert("消せませんでした。しばらくしてから、もういちど試してください。");
+      alert("削除できませんでした。しばらくしてからもう一度お試しください。");
       return;
     }
     load();
@@ -317,15 +317,15 @@
 
   $("btn-delete-all").addEventListener("click", async () => {
     const answer = prompt(
-      "さんかしゃの データを、ぜんぶ 消します（もとにもどせません）。\n本当に消すときは、「ぜんぶけす」と入力してください。"
+      "参加者のデータをすべて削除します（元に戻せません）。\n本当に削除する場合は、「全部削除」と入力してください。"
     );
-    if (answer !== "ぜんぶけす") return;
+    if (answer !== "全部削除") return;
     const { data, error } = await client.rpc("admin_delete_all_players");
     if (error) {
-      alert("消せませんでした。しばらくしてから、もういちど試してください。");
+      alert("削除できませんでした。しばらくしてからもう一度お試しください。");
       return;
     }
-    alert(data + " 人分のデータを、消しました。");
+    alert(data + " 人分のデータを削除しました。");
     load();
   });
 
