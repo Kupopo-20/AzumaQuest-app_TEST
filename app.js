@@ -1145,15 +1145,6 @@
   const restoreMessage = document.getElementById("restore-message");
   const btnRestoreConfirm = document.getElementById("btn-restore-confirm");
 
-  // ステータス画面に、このスマホのひきつぎコードを出す
-  function updateRestoreCodeDisplay() {
-    const code = window.AzumaCloud ? window.AzumaCloud.getRestoreCode() : "";
-    const el = document.getElementById("status-restore-code");
-    el.hidden = !code;
-    document.getElementById("status-restore-code-value").textContent = code;
-  }
-  if (window.AzumaCloud) window.AzumaCloud.onRestoreCode(updateRestoreCodeDisplay);
-
   document.getElementById("btn-open-restore").addEventListener("click", () => {
     restoreInput.value = "";
     restoreMessage.textContent = "";
@@ -1331,7 +1322,6 @@
   statusClearFadeWrap.addEventListener("animationend", finishStatusClearFadeIn);
 
   function renderStatus() {
-    updateRestoreCodeDisplay();
     const charKey = state.character || "braver";
     const characterImageEl = document.getElementById("status-character-image");
     characterImageEl.src = CHARACTER_IMAGE[charKey];
