@@ -16,7 +16,9 @@
   <div class="opening-overlay">
     <img class="title-banner" src="assets/title-banner.png" alt="あずま保育園クエスト">
     <button id="btn-start" class="btn-primary">スタート</button>
+    <button id="btn-open-restore" class="btn-link">ひきつぎコードで　つづきから</button>
   </div>
+  <p class="opening-note">※ イベントの運営のため、ニックネームとゲームの進み具合を、サーバーに保存します。</p>
 </section>
 
 <!-- ==================== なまえ入力画面 ==================== -->
@@ -27,6 +29,18 @@
     <p class="name-input-hint">つかえるもじ：ひらがな・カタカナ・ローマ字<br>（10もじまで）</p>
     <p id="name-input-message" class="name-input-message"></p>
     <button id="btn-name-confirm" class="btn-primary">けってい</button>
+  </div>
+</section>
+
+<!-- ==================== ひきつぎコード入力画面 ==================== -->
+<section id="screen-restore" class="screen">
+  <h1 class="dq-title">ひきつぎコード</h1>
+  <div class="name-input-wrap">
+    <input id="restore-input" class="name-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" autocomplete="off">
+    <p class="name-input-hint">いままで あそんでいた スマホの<br>ステータス画面に のっている、<br>すうじ６けたを いれてね。</p>
+    <p id="restore-message" class="name-input-message"></p>
+    <button id="btn-restore-confirm" class="btn-primary">つづきから</button>
+    <button id="btn-restore-back" class="btn-secondary">もどる</button>
   </div>
 </section>
 
@@ -117,6 +131,9 @@
 
   <!-- まおうをたおしたあと〜エンディングのQRを読むまで -->
   <p id="status-boss-defeated-message" class="status-defeated-message" hidden>まおうを　たおした！<br>がめんを　そんちょうへ　みせて！</p>
+
+  <!-- ひきつぎコード（スマホを変えたときに、続きからあそぶためのコード） -->
+  <p id="status-restore-code" class="status-restore-code" hidden>ひきつぎコード：<span id="status-restore-code-value"></span></p>
 
   <!-- ▼▼▼ デバッグ用（本番公開前に必ず削除すること） ▼▼▼ -->
   <button id="btn-debug-level-plus1" class="btn-debug-reset">【デバッグ】レベルを＋１</button>
@@ -312,6 +329,9 @@
 <script src="lib/leaflet.js"></script>
 <script src="map-data.js"></script>
 <script src="quiz-data.js"></script>
+<script src="lib/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="cloud.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

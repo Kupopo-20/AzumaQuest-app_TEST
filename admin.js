@@ -1,0 +1,300 @@
+// うんえい かんり：参加者の進み具合を、一覧で見る（運営メンバーだけ）
+(() => {
+  "use strict";
+
+  const cfg = window.AZUMA_SUPABASE;
+  const REFRESH_MS = 10 * 1000; // 一覧を、自動で新しくする間隔
+  const ACTIVE_MS = 10 * 60 * 1000; // この時間いないに動いていたら「いま あそんでいる」
+  const IDLE_MS = 30 * 60 * 1000; // この時間いじょう動いていなくて、クリア前なら「うごいていない」
+  const LEVEL_MAX = 20;
+  const MEDAL_MAX = 4;
+
+  const $ = (id) => document.getElementById(id);
+  const loginView = $("login-view");
+  const mainView = $("main-view");
+  const loginMessage = $("login-message");
+  const listEl = $("list");
+  const listMessage = $("list-message");
+
+  if (!cfg || !window.supabase) {
+    loginMessage.textContent = "接続の設定が読み込めませんでした。";
+    loginMessage.classList.add("error");
+    return;
+  }
+  const client = window.supabase.createClient(cfg.url, cfg.key, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  });
+
+  let players = [];
+  let timer = null;
+  let loading = false;
+
+  // ---------- ログイン ----------
+  async function checkAdmin() {
+    const { data, error } = await client.rpc("is_admin");
+    return !error && data === true;
+  }
+
+  async function enter() {
+    if (!(await checkAdmin())) {
+      await client.auth.signOut();
+      loginView.hidden = false;
+      mainView.hidden = true;
+      return false;
+    }
+    loginView.hidden = true;
+    mainView.hidden = false;
+    await load();
+    clearInterval(timer);
+    timer = setInterval(() => {
+      if (!document.hidden) load();
+    }, REFRESH_MS);
+    return true;
+  }
+
+  $("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = $("login-button");
+    button.disabled = true;
+    loginMessage.classList.remove("error");
+    loginMessage.textContent = "ログインしています…";
+    const { error } = await client.auth.signInWithPassword({
+      email: $("login-email").value.trim(),
+      password: $("login-password").value,
+    });
+    if (error) {
+      loginMessage.classList.add("error");
+      loginMessage.textContent = "メールアドレスか、パスワードが、ちがいます。";
+      button.disabled = false;
+      return;
+    }
+    const ok = await enter();
+    if (!ok) {
+      loginMessage.classList.add("error");
+      loginMessage.textContent = "このアカウントは、運営メンバーとして登録されていません。";
+    } else {
+      loginMessage.textContent = "";
+      $("login-password").value = "";
+    }
+    button.disabled = false;
+  });
+
+  $("btn-logout").addEventListener("click", async () => {
+    clearInterval(timer);
+    await client.auth.signOut();
+    players = [];
+    mainView.hidden = true;
+    loginView.hidden = false;
+  });
+
+  // ---------- データを読む ----------
+  async function load() {
+    if (loading) return;
+    loading = true;
+    const { data, error } = await client
+      .from("players")
+      .select(
+        "id,name,character,level_count,medal_count,last_quest_pass,quiz_won,ending_seen,restore_code,created_at,last_seen_at"
+      )
+      .order("last_seen_at", { ascending: false })
+      .limit(2000);
+    loading = false;
+    if (error) {
+      listMessage.classList.add("error");
+      listMessage.textContent = "データを読み込めませんでした。しばらくしてから、「いま 更新」を押してください。";
+      return;
+    }
+    listMessage.classList.remove("error");
+    listMessage.textContent = "";
+    players = data || [];
+    $("updated-at").textContent = "更新：" + new Date().toLocaleTimeString("ja-JP");
+    render();
+  }
+
+  // ---------- 表示 ----------
+  function agoText(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "たった今";
+    if (m < 60) return m + "分前";
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + "時間前";
+    return Math.floor(h / 24) + "日前";
+  }
+
+  function stateOf(p) {
+    const age = Date.now() - new Date(p.last_seen_at).getTime();
+    return {
+      active: age <= ACTIVE_MS,
+      idle: age >= IDLE_MS && !p.quiz_won,
+      cleared: !!p.quiz_won,
+    };
+  }
+
+  function el(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function charName(c) {
+    return c === "braver" ? "ゆうしゃ" : c === "wizard" ? "まほうつかい" : "";
+  }
+
+  function rowFor(p) {
+    const st = stateOf(p);
+    const row = el("div", "row" + (st.cleared ? " is-cleared" : "") + (st.active ? " is-active" : "") + (st.idle ? " is-idle" : ""));
+
+    const name = el("div", "c-name", p.name || "（なまえなし）");
+    const small = el("small", "", charName(p.character));
+    name.appendChild(small);
+
+    const seen = el("div", "c-seen");
+    seen.appendChild(el("span", "dot"));
+    seen.appendChild(document.createTextNode(agoText(p.last_seen_at)));
+
+    const level = el("div", "c-level");
+    const bar = el("div", "bar");
+    const fill = el("i");
+    fill.style.width = Math.min(100, (p.level_count / LEVEL_MAX) * 100) + "%";
+    bar.appendChild(fill);
+    level.appendChild(bar);
+    level.appendChild(el("span", "lv", "Lv " + p.level_count + " / " + LEVEL_MAX));
+
+    const meta = el("div", "c-meta");
+    const medals = el("span", "medals");
+    for (let i = 0; i < MEDAL_MAX; i++) {
+      const s = el("span", i < p.medal_count ? "" : "off", "★");
+      medals.appendChild(s);
+    }
+    meta.appendChild(medals);
+    meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "かくしつうろ"));
+    meta.appendChild(el("span", "tag" + (p.quiz_won ? " on" : ""), "まおう"));
+    meta.appendChild(el("span", "tag" + (p.ending_seen ? " on" : ""), "エンディング"));
+    meta.appendChild(el("span", "code", "コード " + (p.restore_code || "")));
+
+    const del = el("button", "c-del", "✕");
+    del.type = "button";
+    del.title = "この人のデータを消す";
+    del.addEventListener("click", () => deleteOne(p));
+
+    row.append(name, seen, level, meta, del);
+    return row;
+  }
+
+  function currentList() {
+    const q = $("search").value.trim().toLowerCase();
+    const filter = $("filter").value;
+    let list = players.filter((p) => {
+      if (q && !(p.name || "").toLowerCase().includes(q)) return false;
+      const st = stateOf(p);
+      if (filter === "active") return st.active;
+      if (filter === "idle") return st.idle;
+      if (filter === "boss") return p.quiz_won;
+      if (filter === "notclear") return !p.quiz_won;
+      return true;
+    });
+    const sort = $("sort").value;
+    const by = {
+      seen: (a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at),
+      level: (a, b) => b.level_count - a.level_count || b.medal_count - a.medal_count,
+      levelAsc: (a, b) => a.level_count - b.level_count || a.medal_count - b.medal_count,
+      name: (a, b) => (a.name || "").localeCompare(b.name || "", "ja"),
+      created: (a, b) => new Date(a.created_at) - new Date(b.created_at),
+    }[sort];
+    list = list.slice().sort(by);
+    return list;
+  }
+
+  function render() {
+    // まとめ
+    const total = players.length;
+    let active = 0, boss = 0, ending = 0, idle = 0, sum = 0;
+    players.forEach((p) => {
+      const st = stateOf(p);
+      if (st.active) active++;
+      if (p.quiz_won) boss++;
+      if (p.ending_seen) ending++;
+      if (st.idle) idle++;
+      sum += p.level_count || 0;
+    });
+    $("stat-total").textContent = total;
+    $("stat-active").textContent = active;
+    $("stat-boss").textContent = boss;
+    $("stat-ending").textContent = ending;
+    $("stat-avg").textContent = total ? (sum / total).toFixed(1) : "0";
+    $("stat-idle").textContent = idle;
+
+    // 一覧
+    const list = currentList();
+    listEl.textContent = "";
+    list.forEach((p) => listEl.appendChild(rowFor(p)));
+    if (!list.length) {
+      listMessage.classList.remove("error");
+      listMessage.textContent = total ? "条件に合う人は、いません。" : "まだ、さんかしゃは、いません。";
+    } else if (!listMessage.classList.contains("error")) {
+      listMessage.textContent = "";
+    }
+  }
+
+  ["search", "sort", "filter"].forEach((id) => $(id).addEventListener("input", render));
+  $("btn-refresh").addEventListener("click", load);
+
+  // ---------- CSV ----------
+  $("btn-csv").addEventListener("click", () => {
+    const head = ["なまえ", "キャラ", "レベル", "勲章", "かくしつうろ", "まおう", "エンディング", "ひきつぎコード", "はじめた", "最後に動いた"];
+    const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const fmt = (iso) => new Date(iso).toLocaleString("ja-JP");
+    const lines = [head.map(q).join(",")];
+    currentList().forEach((p) => {
+      lines.push(
+        [
+          p.name, charName(p.character), p.level_count, p.medal_count,
+          p.last_quest_pass ? "はい" : "", p.quiz_won ? "はい" : "", p.ending_seen ? "はい" : "",
+          p.restore_code, fmt(p.created_at), fmt(p.last_seen_at),
+        ].map(q).join(",")
+      );
+    });
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "azuma-quest-players.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  // ---------- 消す ----------
+  async function deleteOne(p) {
+    if (!confirm((p.name || "（なまえなし）") + " さんのデータを消します。よろしいですか？\n（もとにもどせません）")) return;
+    const { error } = await client.from("players").delete().eq("id", p.id);
+    if (error) {
+      alert("消せませんでした。しばらくしてから、もういちど試してください。");
+      return;
+    }
+    load();
+  }
+
+  $("btn-delete-all").addEventListener("click", async () => {
+    const answer = prompt(
+      "さんかしゃの データを、ぜんぶ 消します（もとにもどせません）。\n本当に消すときは、「ぜんぶけす」と入力してください。"
+    );
+    if (answer !== "ぜんぶけす") return;
+    const { data, error } = await client.rpc("admin_delete_all_players");
+    if (error) {
+      alert("消せませんでした。しばらくしてから、もういちど試してください。");
+      return;
+    }
+    alert(data + " 人分のデータを、消しました。");
+    load();
+  });
+
+  // ---------- はじめ：すでにログイン済みなら、そのまま入る ----------
+  (async () => {
+    const { data } = await client.auth.getSession();
+    const user = data && data.session && data.session.user;
+    if (user && !user.is_anonymous) await enter();
+  })();
+})();

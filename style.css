@@ -1325,3 +1325,44 @@ button {
 .treasure-icon-img.is-key-hidden {
   opacity: 0 !important;
 }
+
+/* ---------- ひきつぎコード（スマホを変えたときに、続きから遊ぶ） ---------- */
+.btn-link {
+  margin-top: -16px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--dq-white);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-shadow: 1px 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.8);
+}
+.opening-note {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 3;
+  margin: 0;
+  text-align: center;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: rgba(245, 245, 245, 0.9);
+  text-shadow: 1px 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.85);
+}
+#screen-restore .btn-secondary {
+  margin-top: 4px;
+}
+.status-restore-code {
+  margin: 18px 0 0;
+  font-size: 0.8rem;
+  color: var(--dq-white);
+  opacity: 0.75;
+  text-align: center;
+}
+.status-restore-code span {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--dq-gold);
+}

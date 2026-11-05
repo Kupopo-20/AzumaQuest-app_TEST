@@ -117,6 +117,8 @@
 
   function saveState() {
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    // スマホの中に保存したあと、Supabase にも送る（つながらないときは、あとで送る）
+    if (window.AzumaCloud) window.AzumaCloud.queue(state);
   }
 
   let state = loadState();
@@ -1136,6 +1138,63 @@
     else goAfterStart();
   });
 
+  // ------------------------------------------------------------------
+  // ひきつぎコード：別のスマホ（またはデータが消えたあと）で、続きから遊ぶ
+  // ------------------------------------------------------------------
+  const restoreInput = document.getElementById("restore-input");
+  const restoreMessage = document.getElementById("restore-message");
+  const btnRestoreConfirm = document.getElementById("btn-restore-confirm");
+
+  // ステータス画面に、このスマホのひきつぎコードを出す
+  function updateRestoreCodeDisplay() {
+    const code = window.AzumaCloud ? window.AzumaCloud.getRestoreCode() : "";
+    const el = document.getElementById("status-restore-code");
+    el.hidden = !code;
+    document.getElementById("status-restore-code-value").textContent = code;
+  }
+  if (window.AzumaCloud) window.AzumaCloud.onRestoreCode(updateRestoreCodeDisplay);
+
+  document.getElementById("btn-open-restore").addEventListener("click", () => {
+    restoreInput.value = "";
+    restoreMessage.textContent = "";
+    showScreen("restore");
+  });
+  document.getElementById("btn-restore-back").addEventListener("click", () => showScreen("opening"));
+  restoreInput.addEventListener("input", () => {
+    restoreInput.value = restoreInput.value.replace(/[^0-9]/g, "").slice(0, 6); // すうじだけ
+  });
+
+  btnRestoreConfirm.addEventListener("click", async () => {
+    const code = restoreInput.value.trim();
+    if (!/^\d{6}$/.test(code)) {
+      restoreMessage.textContent = "すうじ６けたを　いれてね";
+      return;
+    }
+    if (!window.AzumaCloud || !window.AzumaCloud.available()) {
+      restoreMessage.textContent = "いまは　つかえないよ";
+      return;
+    }
+    btnRestoreConfirm.disabled = true;
+    restoreMessage.textContent = "さがしているよ…";
+    const res = await window.AzumaCloud.restore(code);
+    btnRestoreConfirm.disabled = false;
+    if (!res.ok) {
+      restoreMessage.textContent =
+        res.error === "notfound"
+          ? "コードが　ちがうよ。もういちど　たしかめてね"
+          : res.error === "too_many"
+          ? "まちがいが　おおいよ。しばらくしてから　もういちど"
+          : "つながらなかったよ。でんぱの　ある　ところで　もういちど";
+      return;
+    }
+    // もどした保存データを、このスマホの保存データにして、続きから始める
+    localStorage.setItem(STATE_KEY, JSON.stringify(res.state));
+    state = loadState();
+    saveState();
+    pendingMedalSparkleIndex = null;
+    showScreen("status");
+  });
+
   const NAME_CHAR_RE = /^[ぁ-んァ-ヶーa-zA-Zａ-ｚＡ-Ｚ　 ]+$/;
   const nameInput = document.getElementById("name-input");
   const nameInputMessage = document.getElementById("name-input-message");
@@ -1272,6 +1331,7 @@
   statusClearFadeWrap.addEventListener("animationend", finishStatusClearFadeIn);
 
   function renderStatus() {
+    updateRestoreCodeDisplay();
     const charKey = state.character || "braver";
     const characterImageEl = document.getElementById("status-character-image");
     characterImageEl.src = CHARACTER_IMAGE[charKey];
