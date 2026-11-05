@@ -317,7 +317,8 @@
     if (!confirm((p.name || "（名前なし）") + " さんのデータを削除します。よろしいですか？\n（元に戻せません）")) return;
     const { error } = await client.from("players").delete().eq("id", p.id);
     if (error) {
-      alert("削除できませんでした。しばらくしてからもう一度お試しください。");
+      alert("削除できませんでした。
+原因：" + (error.message || error.code || "不明"));
       return;
     }
     load();
@@ -330,7 +331,8 @@
     if (answer !== "全部削除") return;
     const { data, error } = await client.rpc("admin_delete_all_players");
     if (error) {
-      alert("削除できませんでした。しばらくしてからもう一度お試しください。");
+      alert("削除できませんでした。
+原因：" + (error.message || error.code || "不明"));
       return;
     }
     alert(data + " 人分のデータを削除しました。");
