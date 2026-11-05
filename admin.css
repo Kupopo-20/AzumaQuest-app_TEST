@@ -206,6 +206,15 @@ button, input, select { font: inherit; }
 .quest.q1.on { background: #3b82f6; }
 .quest.q2.on { background: #2fbf71; }
 .quest.q3.on { background: #ec5fa5; }
+.quest-avail {
+  margin-left: 4px;
+  padding: 1px 9px;
+  border-radius: 10px;
+  background: var(--gold);
+  color: #3a2a00;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
 .chest {
   min-width: 1.75em;
   padding: 1px 3px;
