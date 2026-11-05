@@ -1687,6 +1687,8 @@
   });
 
   document.getElementById("btn-debug-back-to-opening").addEventListener("click", () => {
+    // 前の記録とひきつぎコードはサーバーに残し、新しい参加者として始める
+    if (window.AzumaCloud) window.AzumaCloud.startNewPlayer();
     state = defaultState();
     quizRun = null;
     pendingMedalSparkleIndex = null;

@@ -131,6 +131,27 @@
     return { ok: true, state: data.state, code: data.restore_code };
   }
 
+  // 同じスマホで「最初から」はじめなおすとき：いまの記録（とひきつぎコード）はサーバーに残したまま、
+  // このスマホを新しい参加者として扱う（新しい匿名IDで、新しい行・新しいコードができる）
+  async function startNewPlayer() {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    dirty = null;
+    hasRow = false;
+    try {
+      localStorage.removeItem(CODE_KEY);
+    } catch (e) {}
+    if (!available()) return;
+    try {
+      const c = await init();
+      if (c) await c.auth.signOut({ scope: "local" });
+    } catch (e) {}
+    client = null;
+    userId = null;
+    readyPromise = null;
+    init();
+  }
+
   // 「いま遊んでいる」を知らせる（画面を開いている間だけ）
   async function heartbeat() {
     if (document.hidden) return;
@@ -160,6 +181,7 @@
     queue,
     restore,
     getRestoreCode,
+    startNewPlayer,
     onRestoreCode(fn) {
       codeListener = fn;
     },
