@@ -182,3 +182,40 @@ button, input, select { font: inherit; }
 }
 .danger-zone h2 { margin: 0 0 6px; font-size: 0.95rem; color: #ffb3b3; }
 .danger-zone p { margin: 0 0 10px; font-size: 0.82rem; color: var(--soft); }
+
+/* ---------- クエストと、たからばこ（見つけたものに色がつく） ---------- */
+.c-extra {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 34px; /* 右下の ✕ ボタンと重ならないように */
+  padding-top: 2px;
+}
+.quests, .chests { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.extra-label { margin-right: 4px; font-size: 0.72rem; color: var(--soft); white-space: nowrap; }
+.quest {
+  padding: 1px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+.quest.on { border-color: transparent; color: #fff; font-weight: 700; }
+.quest.q0.on { background: #e5484d; }
+.quest.q1.on { background: #3b82f6; }
+.quest.q2.on { background: #2fbf71; }
+.quest.q3.on { background: #ec5fa5; }
+.chest {
+  min-width: 1.75em;
+  padding: 1px 3px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 5px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+.chest.on { background: var(--gold); border-color: var(--gold); color: #3a2a00; font-weight: 700; }
+@media (min-width: 760px) {
+  .c-extra { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 22px; padding-right: 0; }
+}

@@ -8,6 +8,13 @@
   const IDLE_MS = 30 * 60 * 1000; // この時間いじょう動いていなくて、クリア前なら「うごいていない」
   const LEVEL_MAX = 20;
   const MEDAL_MAX = 4;
+  // クエスト（勲章）：番号は、アプリの勲章の番号（0:あか 1:あお 2:みどり 3:ピンク）と同じ
+  const QUESTS = [
+    { color: "あか", monster: "ガーゴイル" },
+    { color: "あお", monster: "ピラニアン" },
+    { color: "みどり", monster: "サーペント" },
+    { color: "ピンク", monster: "アビスバイク" },
+  ];
 
   const $ = (id) => document.getElementById(id);
   const loginView = $("login-view");
@@ -64,7 +71,13 @@
     });
     if (error) {
       loginMessage.classList.add("error");
-      loginMessage.textContent = "メールアドレスか、パスワードが、ちがいます。";
+      const code = error.code || "";
+      loginMessage.textContent =
+        code === "invalid_credentials"
+          ? "メールアドレスか、パスワードが、ちがいます。"
+          : code === "email_not_confirmed"
+          ? "このアカウントは、メールの確認が終わっていません。Supabaseの Authentication → Users で、このユーザーの「Confirm」をしてください。"
+          : "ログインできませんでした（" + (code || error.message || "不明なエラー") + "）。";
       button.disabled = false;
       return;
     }
@@ -94,7 +107,7 @@
     const { data, error } = await client
       .from("players")
       .select(
-        "id,name,character,level_count,medal_count,last_quest_pass,quiz_won,ending_seen,restore_code,created_at,last_seen_at"
+        "id,name,character,level_count,medal_count,last_quest_pass,quiz_won,ending_seen,restore_code,created_at,last_seen_at,eventLevel:state->eventLevel,eventMedal:state->eventMedal"
       )
       .order("last_seen_at", { ascending: false })
       .limit(2000);
@@ -179,7 +192,30 @@
     del.title = "この人のデータを消す";
     del.addEventListener("click", () => deleteOne(p));
 
-    row.append(name, seen, level, meta, del);
+    // クエスト：クリアしたものだけ、勲章の色がつく
+    const medalFlags = Array.isArray(p.eventMedal) ? p.eventMedal : [];
+    const extra = el("div", "c-extra");
+    const quests = el("div", "quests");
+    quests.appendChild(el("span", "extra-label", "クエスト"));
+    QUESTS.forEach((q, i) => {
+      const b = el("span", "quest q" + i + (medalFlags[i] ? " on" : ""), q.color);
+      b.title = q.monster + "（" + q.color + "）" + (medalFlags[i] ? "：クリア" : "：まだ");
+      quests.appendChild(b);
+    });
+
+    // たからばこ：見つけた番号に、色がつく
+    const levels = Array.isArray(p.eventLevel) ? p.eventLevel : [];
+    const foundCount = levels.filter(Boolean).length;
+    const chests = el("div", "chests");
+    chests.appendChild(el("span", "extra-label", "たからばこ " + foundCount + " / " + LEVEL_MAX));
+    for (let n = 1; n <= LEVEL_MAX; n++) {
+      const c = el("span", "chest" + (levels[n - 1] ? " on" : ""), String(n));
+      c.title = n + "ばん" + (levels[n - 1] ? "：見つけた" : "：まだ");
+      chests.appendChild(c);
+    }
+    extra.append(quests, chests);
+
+    row.append(name, seen, level, meta, del, extra);
     return row;
   }
 
@@ -243,7 +279,7 @@
 
   // ---------- CSV ----------
   $("btn-csv").addEventListener("click", () => {
-    const head = ["なまえ", "キャラ", "レベル", "勲章", "かくしつうろ", "まおう", "エンディング", "ひきつぎコード", "はじめた", "最後に動いた"];
+    const head = ["なまえ", "キャラ", "レベル", "勲章", "クリアしたクエスト", "見つけた宝箱", "かくしつうろ", "まおう", "エンディング", "ひきつぎコード", "はじめた", "最後に動いた"];
     const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
     const fmt = (iso) => new Date(iso).toLocaleString("ja-JP");
     const lines = [head.map(q).join(",")];
@@ -251,6 +287,8 @@
       lines.push(
         [
           p.name, charName(p.character), p.level_count, p.medal_count,
+          (Array.isArray(p.eventMedal) ? p.eventMedal : []).map((v, i) => (v ? QUESTS[i].color : "")).filter(Boolean).join("・"),
+          (Array.isArray(p.eventLevel) ? p.eventLevel : []).map((v, i) => (v ? i + 1 : "")).filter(Boolean).join(" "),
           p.last_quest_pass ? "はい" : "", p.quiz_won ? "はい" : "", p.ending_seen ? "はい" : "",
           p.restore_code, fmt(p.created_at), fmt(p.last_seen_at),
         ].map(q).join(",")
