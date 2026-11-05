@@ -1,0 +1,219 @@
+// うんえい みまもり：参加者の進み具合を、見るだけの画面（ログインなし・キー付きURL）
+(() => {
+  "use strict";
+
+  const cfg = window.AZUMA_SUPABASE;
+  const REFRESH_MS = 10 * 1000; // 一覧を、自動で新しくする間隔
+  const ACTIVE_MS = 10 * 60 * 1000; // この時間いないに動いていたら「いま あそんでいる」
+  const IDLE_MS = 30 * 60 * 1000; // この時間いじょう動いていなくて、クリア前なら「うごいていない」
+  const LEVEL_MAX = 20;
+  const MEDAL_MAX = 4;
+  // クエスト（勲章）：番号は、アプリの勲章の番号（0:あか 1:あお 2:みどり 3:ピンク）と同じ
+  const QUESTS = [
+    { color: "赤", monster: "ガーゴイル" },
+    { color: "青", monster: "ピラニアン" },
+    { color: "緑", monster: "サーペント" },
+    { color: "ピンク", monster: "アビスバイク" },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const listEl = $("list");
+  const listMessage = $("list-message");
+  const KEY = new URLSearchParams(location.search).get("key") || "";
+  if (!cfg || !window.supabase) {
+    listMessage.classList.add("error");
+    listMessage.textContent = "接続の設定を読み込めませんでした。";
+    return;
+  }
+  if (!KEY) {
+    listMessage.classList.add("error");
+    listMessage.textContent = "閲覧用のURLが正しくありません。運営から共有されたURLを、そのまま開いてください。";
+    return;
+  }
+  const client = window.supabase.createClient(cfg.url, cfg.key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+
+  let players = [];
+  let timer = null;
+  let loading = false;
+
+  // ---------- データを読む ----------
+  async function load() {
+    if (loading) return;
+    loading = true;
+    const { data, error } = await client.rpc("watch_players", { p_key: KEY });
+    loading = false;
+    if (error) {
+      listMessage.classList.add("error");
+      listMessage.textContent = /not_allowed/.test(error.message || "") ? "閲覧用のURLが正しくないか、古くなっています。運営から新しいURLを受け取ってください。" : "データを読み込めませんでした。しばらくしてから「今すぐ更新」を押してください。";
+      return;
+    }
+    listMessage.classList.remove("error");
+    listMessage.textContent = "";
+    players = data || [];
+    $("updated-at").textContent = "更新：" + new Date().toLocaleTimeString("ja-JP");
+    render();
+  }
+
+  // ---------- 表示 ----------
+  function agoText(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "たった今";
+    if (m < 60) return m + "分前";
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + "時間前";
+    return Math.floor(h / 24) + "日前";
+  }
+
+  function stateOf(p) {
+    const age = Date.now() - new Date(p.last_seen_at).getTime();
+    return {
+      active: age <= ACTIVE_MS,
+      idle: age >= IDLE_MS && !p.quiz_won,
+      cleared: !!p.quiz_won,
+    };
+  }
+
+  function el(tag, className, text) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function charName(c) {
+    return c === "braver" ? "ゆうしゃ" : c === "wizard" ? "まほうつかい" : "";
+  }
+
+  function rowFor(p) {
+    const st = stateOf(p);
+    const row = el("div", "row" + (st.cleared ? " is-cleared" : "") + (st.active ? " is-active" : "") + (st.idle ? " is-idle" : ""));
+
+    const name = el("div", "c-name", p.name || "（名前なし）");
+    const small = el("small", "", charName(p.character));
+    name.appendChild(small);
+
+    const seen = el("div", "c-seen");
+    seen.appendChild(el("span", "dot"));
+    seen.appendChild(document.createTextNode(agoText(p.last_seen_at)));
+
+    const level = el("div", "c-level");
+    const bar = el("div", "bar");
+    const fill = el("i");
+    fill.style.width = Math.min(100, (p.level_count / LEVEL_MAX) * 100) + "%";
+    bar.appendChild(fill);
+    level.appendChild(bar);
+    level.appendChild(el("span", "lv", "Lv " + p.level_count + " / " + LEVEL_MAX));
+
+    const meta = el("div", "c-meta");
+    const medals = el("span", "medals");
+    for (let i = 0; i < MEDAL_MAX; i++) {
+      const s = el("span", i < p.medal_count ? "" : "off", "★");
+      medals.appendChild(s);
+    }
+    meta.appendChild(medals);
+    meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "隠し通路"));
+    meta.appendChild(el("span", "tag" + (p.quiz_won ? " on" : ""), "まおう"));
+    meta.appendChild(el("span", "tag" + (p.ending_seen ? " on" : ""), "エンディング"));
+
+    // クエスト：クリアしたものだけ、勲章の色がつく
+    const medalFlags = Array.isArray(p.eventMedal) ? p.eventMedal : [];
+    const extra = el("div", "c-extra");
+    const quests = el("div", "quests");
+    quests.appendChild(el("span", "extra-label", "クエスト"));
+    QUESTS.forEach((q, i) => {
+      const b = el("span", "quest q" + i + (medalFlags[i] ? " on" : ""), q.color);
+      b.title = q.monster + "（" + q.color + "）" + (medalFlags[i] ? "：クリア" : "：まだ");
+      quests.appendChild(b);
+    });
+    // 受けられるクエスト数：レベル5ごとに1つ解放（最大4）－ クリア済みの数（アプリと同じ計算）
+    const cleared = medalFlags.filter(Boolean).length;
+    const available = Math.max(0, Math.min(4, Math.floor((p.level_count || 0) / 5)) - cleared);
+    if (available > 0) {
+      const a = el("span", "quest-avail", "受注可能 " + available + "件");
+      a.title = "レベルが上がって、まだ挑戦していないクエストの数";
+      quests.appendChild(a);
+    }
+
+    // たからばこ：見つけた番号に、色がつく
+    const levels = Array.isArray(p.eventLevel) ? p.eventLevel : [];
+    const foundCount = levels.filter(Boolean).length;
+    const chests = el("div", "chests");
+    chests.appendChild(el("span", "extra-label", "宝箱 " + foundCount + " / " + LEVEL_MAX));
+    for (let n = 1; n <= LEVEL_MAX; n++) {
+      const c = el("span", "chest" + (levels[n - 1] ? " on" : ""), String(n));
+      c.title = n + "番" + (levels[n - 1] ? "：見つけた" : "：まだ");
+      chests.appendChild(c);
+    }
+    extra.append(quests, chests);
+
+    row.append(name, seen, level, meta, extra);
+    return row;
+  }
+
+  function currentList() {
+    const q = $("search").value.trim().toLowerCase();
+    const filter = $("filter").value;
+    let list = players.filter((p) => {
+      if (q && !(p.name || "").toLowerCase().includes(q)) return false;
+      const st = stateOf(p);
+      if (filter === "active") return st.active;
+      if (filter === "idle") return st.idle;
+      if (filter === "boss") return p.quiz_won;
+      if (filter === "notclear") return !p.quiz_won;
+      return true;
+    });
+    const sort = $("sort").value;
+    const by = {
+      seen: (a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at),
+      level: (a, b) => b.level_count - a.level_count || b.medal_count - a.medal_count,
+      levelAsc: (a, b) => a.level_count - b.level_count || a.medal_count - b.medal_count,
+      name: (a, b) => (a.name || "").localeCompare(b.name || "", "ja"),
+      created: (a, b) => new Date(a.created_at) - new Date(b.created_at),
+    }[sort];
+    list = list.slice().sort(by);
+    return list;
+  }
+
+  function render() {
+    // まとめ
+    const total = players.length;
+    let active = 0, boss = 0, ending = 0, idle = 0, sum = 0;
+    players.forEach((p) => {
+      const st = stateOf(p);
+      if (st.active) active++;
+      if (p.quiz_won) boss++;
+      if (p.ending_seen) ending++;
+      if (st.idle) idle++;
+      sum += p.level_count || 0;
+    });
+    $("stat-total").textContent = total;
+    $("stat-active").textContent = active;
+    $("stat-boss").textContent = boss;
+    $("stat-ending").textContent = ending;
+    $("stat-avg").textContent = total ? (sum / total).toFixed(1) : "0";
+    $("stat-idle").textContent = idle;
+
+    // 一覧
+    const list = currentList();
+    listEl.textContent = "";
+    list.forEach((p) => listEl.appendChild(rowFor(p)));
+    if (!list.length) {
+      listMessage.classList.remove("error");
+      listMessage.textContent = total ? "条件に合う人はいません。" : "まだ参加者はいません。";
+    } else if (!listMessage.classList.contains("error")) {
+      listMessage.textContent = "";
+    }
+  }
+
+  ["search", "sort", "filter"].forEach((id) => $(id).addEventListener("input", render));
+  $("btn-refresh").addEventListener("click", load);
+
+  // ---------- はじめ ----------
+  load();
+  timer = setInterval(() => {
+    if (!document.hidden) load();
+  }, REFRESH_MS);
+})();

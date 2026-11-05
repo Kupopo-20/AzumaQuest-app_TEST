@@ -228,3 +228,10 @@ button, input, select { font: inherit; }
 @media (min-width: 760px) {
   .c-extra { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 22px; padding-right: 0; }
 }
+
+/* ---------- 見るだけの画面（watch.html） ---------- */
+.watch-note { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--soft); border-radius: 10px; font-size: 0.68rem; font-weight: 400; color: var(--soft); vertical-align: middle; }
+.watch .c-extra { padding-right: 0; }
+@media (min-width: 760px) {
+  .watch .row { grid-template-columns: 11em 7.5em 1fr 22em; }
+}

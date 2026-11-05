@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>見守り（あずま保育園クエスト）</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div id="main-view" class="watch">
+  <header class="topbar">
+    <h1>見守り（あずま保育園クエスト）<small class="watch-note">閲覧専用</small></h1>
+    <div class="topbar-actions">
+      <span id="updated-at" class="updated-at">-</span>
+      <button id="btn-refresh" class="btn">今すぐ更新</button>
+    </div>
+  </header>
+
+  <section class="summary" aria-label="サマリー">
+    <div class="stat"><span class="stat-num" id="stat-total">0</span><span class="stat-label">参加者</span></div>
+    <div class="stat"><span class="stat-num" id="stat-active">0</span><span class="stat-label">今あそんでいる<small>（10分以内に動きがあった人）</small></span></div>
+    <div class="stat"><span class="stat-num" id="stat-boss">0</span><span class="stat-label">まおうを倒した</span></div>
+    <div class="stat"><span class="stat-num" id="stat-ending">0</span><span class="stat-label">エンディング</span></div>
+    <div class="stat"><span class="stat-num" id="stat-avg">0</span><span class="stat-label">平均レベル</span></div>
+    <div class="stat stat-warn"><span class="stat-num" id="stat-idle">0</span><span class="stat-label">30分以上 動いていない<small>（クリア前）</small></span></div>
+  </section>
+
+  <section class="controls">
+    <input id="search" type="search" placeholder="名前で検索" aria-label="名前で検索">
+    <select id="sort" aria-label="並べ替え">
+      <option value="seen">最近動いた順</option>
+      <option value="level">レベルが高い順</option>
+      <option value="levelAsc">レベルが低い順</option>
+      <option value="name">名前順</option>
+      <option value="created">開始が早い順</option>
+    </select>
+    <select id="filter" aria-label="絞り込み">
+      <option value="all">全員</option>
+      <option value="active">今あそんでいる</option>
+      <option value="idle">30分以上 動いていない（クリア前）</option>
+      <option value="boss">まおうを倒した</option>
+      <option value="notclear">まだクリアしていない</option>
+    </select>
+  </section>
+
+  <p id="list-message" class="message"></p>
+  <div id="list" class="list"></div>
+</div>
+
+<script src="lib/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="watch.js"></script>
+</body>
+</html>
