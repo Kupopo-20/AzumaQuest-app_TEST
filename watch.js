@@ -125,11 +125,9 @@
     // 受けられるクエスト数：レベル5ごとに1つ解放（最大4）－ クリア済みの数（アプリと同じ計算）
     const cleared = medalFlags.filter(Boolean).length;
     const available = Math.max(0, Math.min(4, Math.floor((p.level_count || 0) / 5)) - cleared);
-    if (available > 0) {
-      const a = el("span", "quest-avail", "受注可能 " + available + "件");
-      a.title = "レベルが上がって、まだ挑戦していないクエストの数";
-      quests.appendChild(a);
-    }
+    const a = el("span", "quest-avail" + (available > 0 ? "" : " zero"), "受注可能 " + available + "件");
+    a.title = "レベルが上がって、まだ挑戦していないクエストの数";
+    quests.appendChild(a);
 
     // たからばこ：見つけた番号に、色がつく
     const levels = Array.isArray(p.eventLevel) ? p.eventLevel : [];
