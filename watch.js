@@ -108,12 +108,6 @@
     level.appendChild(el("span", "lv", "Lv " + p.level_count + " / " + LEVEL_MAX));
 
     const meta = el("div", "c-meta");
-    const medals = el("span", "medals");
-    for (let i = 0; i < MEDAL_MAX; i++) {
-      const s = el("span", i < p.medal_count ? "" : "off", "★");
-      medals.appendChild(s);
-    }
-    meta.appendChild(medals);
     meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "隠し通路"));
     meta.appendChild(el("span", "tag" + (p.quiz_won ? " on" : ""), "まおう"));
     meta.appendChild(el("span", "tag" + (p.ending_seen ? " on" : ""), "エンディング"));
@@ -147,9 +141,9 @@
       c.title = n + "番" + (levels[n - 1] ? "：見つけた" : "：まだ");
       chests.appendChild(c);
     }
-    extra.append(quests, chests);
+    extra.append(chests, quests, meta);
 
-    row.append(name, seen, level, meta, extra);
+    row.append(name, seen, level, extra);
     return row;
   }
 
@@ -158,11 +152,11 @@
     const filter = $("filter").value;
     let list = players.filter((p) => {
       if (q && !(p.name || "").toLowerCase().includes(q)) return false;
-      const st = stateOf(p);
-      if (filter === "active") return st.active;
-      if (filter === "idle") return st.idle;
-      if (filter === "boss") return p.quiz_won;
-      if (filter === "notclear") return !p.quiz_won;
+      const mf = Array.isArray(p.eventMedal) ? p.eventMedal : [];
+      if (/^notq[0-3]$/.test(filter)) return !mf[Number(filter.slice(4))];
+      if (filter === "nopass") return !p.last_quest_pass;
+      if (filter === "notboss") return !p.quiz_won;
+      if (filter === "noend") return !p.ending_seen;
       return true;
     });
     const sort = $("sort").value;

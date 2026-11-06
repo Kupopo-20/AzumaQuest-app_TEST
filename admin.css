@@ -162,7 +162,7 @@ button, input, select { font: inherit; }
 @media (min-width: 760px) {
   body { padding-left: 24px; padding-right: 24px; }
   .row {
-    grid-template-columns: 11em 7.5em 1fr 22em 2.4em;
+    grid-template-columns: 11em 7.5em 1fr 2.4em;
     align-items: center;
     padding: 8px 12px;
   }
@@ -233,5 +233,5 @@ button, input, select { font: inherit; }
 .watch-note { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--soft); border-radius: 10px; font-size: 0.68rem; font-weight: 400; color: var(--soft); vertical-align: middle; }
 .watch .c-extra { padding-right: 0; }
 @media (min-width: 760px) {
-  .watch .row { grid-template-columns: 11em 7.5em 1fr 22em; }
+  .watch .row { grid-template-columns: 11em 7.5em 1fr; }
 }
