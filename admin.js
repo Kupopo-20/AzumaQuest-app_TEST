@@ -225,6 +225,7 @@
     let list = players.filter((p) => {
       if (q && !(p.name || "").toLowerCase().includes(q)) return false;
       const mf = Array.isArray(p.eventMedal) ? p.eventMedal : [];
+      if (filter === "avail") return Math.min(4, Math.floor((p.level_count || 0) / 5)) - mf.filter(Boolean).length > 0;
       if (/^notq[0-3]$/.test(filter)) return !mf[Number(filter.slice(4))];
       if (filter === "nopass") return !p.last_quest_pass;
       if (filter === "notboss") return !p.quiz_won;
