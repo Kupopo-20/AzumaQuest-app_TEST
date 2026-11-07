@@ -175,6 +175,62 @@
   window.addEventListener("online", () => flush());
   setInterval(heartbeat, HEARTBEAT_MS);
 
+  // ---- 全削除のとき、参加者のスマホの中のデータも消す（リセット番号） --------------------
+  // 運営が「データをすべて削除」を押すと、サーバーの「リセット番号」が1つ上がる。
+  // アプリを開いたとき、スマホが覚えている番号とちがえば、スマホの中の進み具合を消して、最初からにする。
+  const EPOCH_KEY = "azumaResetEpoch";
+  const STATE_STORAGE_KEY = "azumaQuestState";
+  const EPOCH_CHECK_INTERVAL_MS = 30 * 1000;
+  let resetting = false;
+  let lastEpochCheck = 0;
+
+  async function checkReset() {
+    if (resetting || !available()) return;
+    lastEpochCheck = Date.now();
+    const c = await init();
+    if (!c) return;
+    let serverEpoch;
+    try {
+      const res = await c.rpc("get_app_epoch");
+      if (res.error || typeof res.data !== "number") return; // 取れないときは、何もしない
+      serverEpoch = res.data;
+    } catch (e) {
+      return;
+    }
+    let local = null;
+    let hasState = false;
+    try {
+      local = localStorage.getItem(EPOCH_KEY);
+      hasState = localStorage.getItem(STATE_STORAGE_KEY) !== null;
+    } catch (e) {}
+    // 番号をまだ覚えていないスマホ：すでに進み具合があれば古いもの（0番）、なければ今の番号を覚える
+    if (local === null) local = hasState ? "0" : String(serverEpoch);
+    if (Number(local) === serverEpoch) {
+      try {
+        localStorage.setItem(EPOCH_KEY, String(serverEpoch));
+      } catch (e) {}
+      return;
+    }
+    // 番号がちがう：このスマホの進み具合を消して、最初からにする
+    resetting = true;
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    dirty = null;
+    try {
+      localStorage.removeItem(STATE_STORAGE_KEY);
+      localStorage.removeItem(CODE_KEY);
+      localStorage.setItem(EPOCH_KEY, String(serverEpoch));
+    } catch (e) {}
+    try {
+      await c.auth.signOut({ scope: "local" });
+    } catch (e) {}
+    location.reload();
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - lastEpochCheck > EPOCH_CHECK_INTERVAL_MS) checkReset();
+  });
+
   window.AzumaCloud = {
     available,
     init,
@@ -182,11 +238,12 @@
     restore,
     getRestoreCode,
     startNewPlayer,
+    isResetting: () => resetting,
     onRestoreCode(fn) {
       codeListener = fn;
     },
   };
 
   // アプリを開いたときに、先に接続しておく（匿名ログインまで済ませる）
-  init();
+  init().then(() => checkReset());
 })();

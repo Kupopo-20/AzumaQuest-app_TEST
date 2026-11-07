@@ -318,7 +318,7 @@
 
   $("btn-delete-all").addEventListener("click", async () => {
     const answer = prompt(
-      "参加者のデータをすべて削除します（元に戻せません）。\n本当に削除する場合は、「全部削除」と入力してください。"
+      "参加者のデータをすべて削除します（元に戻せません）。\n参加者のスマホの中のデータも、次にアプリを開いたときに消えて、最初からになります。\n本当に削除する場合は、「全部削除」と入力してください。"
     );
     if (answer !== "全部削除") return;
     const { data, error } = await client.rpc("admin_delete_all_players");

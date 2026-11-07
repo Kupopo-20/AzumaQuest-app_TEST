@@ -116,6 +116,8 @@
   }
 
   function saveState() {
+    // 運営のリセットで、スマホの中のデータを消している最中は、保存しない（消したものが復活しないように）
+    if (window.AzumaCloud && window.AzumaCloud.isResetting && window.AzumaCloud.isResetting()) return;
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
     // スマホの中に保存したあと、Supabase にも送る（つながらないときは、あとで送る）
     if (window.AzumaCloud) window.AzumaCloud.queue(state);
