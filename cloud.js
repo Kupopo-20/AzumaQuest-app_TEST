@@ -33,6 +33,11 @@
       });
       const { data } = await client.auth.getSession();
       let session = data && data.session;
+      // 運営のログイン（匿名でない）が残っていたら、ゲームでは使わない（運営のデータに、ゲームの記録が混ざらないように）
+      if (session && session.user && session.user.is_anonymous === false) {
+        await client.auth.signOut({ scope: "local" });
+        session = null;
+      }
       if (!session) {
         const res = await client.auth.signInAnonymously();
         if (res.error) throw res.error;

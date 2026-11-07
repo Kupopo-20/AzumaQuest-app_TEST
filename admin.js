@@ -29,7 +29,8 @@
     return;
   }
   const client = window.supabase.createClient(cfg.url, cfg.key, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    // ゲームと同じブラウザで開いても、ログイン情報が混ざらないように、運営専用の保存場所を使う
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "azuma-admin-auth" },
   });
 
   let players = [];
