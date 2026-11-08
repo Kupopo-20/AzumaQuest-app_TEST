@@ -500,14 +500,22 @@
   // ステータス画面の寛ぎ動画と同じ考え方：画面のどこかに触れると止まり、待ち時間は数えなおす。
   // 画面が消えている間は、時間を止める。緑の背景の動画を、キャンバスで緑を抜いて、宝箱の絵の上に重ねる。
   // ------------------------------------------------------------------
-  const TREASURE_KEY = {
-    src: "assets/treasure-key.mp4",
-    // 動画の最初のコマで、宝箱が占める範囲 [左, 上, 右, 下]（0〜1）
-    videoBox: [0.11, 0.342, 0.892, 0.9],
-    // 静止画（assets/treasure-close.png, 199×147）の中で、宝箱が占める範囲 [左, 上, 右, 下]（画素の位置）
-    stillPx: [4, 9, 192, 139],
-    stillSize: [199, 147],
+  // 動画ごとの設定。videoBox: 動画の最初のコマで、宝箱が占める範囲 [左, 上, 右, 下]（0〜1。枠の外にはみ出していてもよい）
+  // stillPx / stillSize: 重ねる静止画の中で、宝箱が占める範囲（画素の位置）と、静止画の大きさ
+  const TREASURE_CLOSED_STILL = { stillPx: [4, 9, 192, 139], stillSize: [199, 147] }; // assets/treasure-close.png
+  const TREASURE_OPEN_STILL = { stillPx: [4, 9, 187, 198], stillSize: [194, 202] }; // assets/treasure-open.png
+  const TREASURE_VIDEOS = {
+    // まだ見つけていない（閉じた）宝箱：流すたびにどちらかをランダムに選ぶ
+    closed: [
+      { src: "assets/treasure-key.mp4", videoBox: [0.11, 0.342, 0.892, 0.9], ...TREASURE_CLOSED_STILL },
+      { src: "assets/treasure-key2.mp4", videoBox: [0.158, 0.383, 0.842, 0.873], ...TREASURE_CLOSED_STILL },
+    ],
+    // 見つけたあとの（開いた）宝箱。動画の宝箱は大きく、下が枠の外にはみ出しているので、静止画の宝箱の大きさに縮めて重ねる
+    open: [
+      { src: "assets/treasure-open-wizard.mp4", videoBox: [0.048, 0.206, 0.842, 1.026], ...TREASURE_OPEN_STILL },
+    ],
   };
+  let treasureCfg = TREASURE_VIDEOS.closed[0]; // いま動かしている（または先読みした）動画の設定
   // 宝箱の待ち時間：45〜75秒（毎回ランダム。?idle=秒 で固定にもできる）
   const TREASURE_MIN_MS = 45 * 1000;
   const TREASURE_MAX_MS = 75 * 1000;
@@ -530,12 +538,13 @@
     return document.getElementById("screen-treasure").classList.contains("active");
   }
 
-  function preloadTreasureVideo() {
+  function preloadTreasureVideo(cfg = treasureCfg) {
     const cur = treasureKeyVideo.getAttribute("src") || "";
-    if (cur === media(TREASURE_KEY.src) || cur === TREASURE_KEY.src) return; // すでに読み込み中／済み（予備に切りかえ済みも含む）
+    if (cur === media(cfg.src) || cur === cfg.src) return; // すでに読み込み中／済み（予備に切りかえ済みも含む）
+    treasureCfg = cfg;
     treasureKeyVideo.crossOrigin = "anonymous"; // キャンバスで画素を読むため
     treasureKeyVideo.preload = "auto";
-    treasureKeyVideo.src = media(TREASURE_KEY.src);
+    treasureKeyVideo.src = media(cfg.src);
     treasureKeyVideo.load();
   }
 
@@ -552,11 +561,10 @@
     preloadTreasureVideo();
   }
 
-  // 動かす宝箱を、まだ見つけていないもの（閉じた宝箱）から、ランダムに1個選ぶ。画面に見えているものを優先する
+  // 動かす宝箱を、全部（閉じた宝箱も開いた宝箱も）から、ランダムに1個選ぶ。画面に見えているものを優先する
   function pickTreasureTarget() {
     const locked = [];
-    for (let i = 0; i < LEVEL_MAX; i++) if (!state.eventLevel[i]) locked.push(i);
-    if (!locked.length) return null;
+    for (let i = 0; i < LEVEL_MAX; i++) locked.push(i);
     const navTop = bottomNav.getBoundingClientRect().top;
     const visible = locked.filter((i) => {
       const r = document.getElementById(`treasure-icon-${i}`).getBoundingClientRect();
@@ -585,7 +593,8 @@
     }
     treasurePlaying = true;
     treasureIconEl = document.getElementById(`treasure-icon-${idx}`);
-    preloadTreasureVideo();
+    const list = state.eventLevel[idx] ? TREASURE_VIDEOS.open : TREASURE_VIDEOS.closed;
+    preloadTreasureVideo(list[Math.floor(Math.random() * list.length)]);
     treasureKeyVideo.currentTime = 0;
     treasureKeyVideo.play().catch(() => {});
     // 動き始めたら、次の待ち時間を数えはじめる（動きおわるのを待たない）
@@ -618,14 +627,15 @@
   // キャンバスの位置と大きさを、静止画の宝箱に重なるように決める（宝箱の絵の中での位置を、動画の中の位置に合わせる）
   function layoutTreasureCanvas(icon) {
     const bw = icon.clientWidth, bh = icon.clientHeight;
-    const [nw, nh] = TREASURE_KEY.stillSize;
+    const cfg = treasureCfg;
+    const [nw, nh] = cfg.stillSize;
     const s = Math.min(bw / nw, bh / nh); // 絵は、枠の中に収まるように縮められる（object-fit: contain）
     const dw = nw * s, dh = nh * s;
     const ox = (bw - dw) / 2, oy = (bh - dh) / 2;
-    const [px0, py0, px1, py1] = TREASURE_KEY.stillPx;
+    const [px0, py0, px1, py1] = cfg.stillPx;
     const sx0 = (ox + px0 * s) / bw, sx1 = (ox + px1 * s) / bw;
     const sy0 = (oy + py0 * s) / bh, sy1 = (oy + py1 * s) / bh;
-    const [vx0, vy0, vx1, vy1] = TREASURE_KEY.videoBox;
+    const [vx0, vy0, vx1, vy1] = cfg.videoBox;
     const wc = (sx1 - sx0) / (vx1 - vx0);
     const hc = (sy1 - sy0) / (vy1 - vy0);
     const cssW = bw * wc, cssH = bh * hc;
