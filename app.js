@@ -1671,6 +1671,11 @@
     handleQrCode(ENDING_CODE);
   });
 
+  // たからばこ画面：待たずに、宝箱の動画（閉じた宝箱／開いた宝箱）を1回流す
+  document.getElementById("btn-debug-treasure-play").addEventListener("click", () => {
+    playTreasureEvent();
+  });
+
   document.getElementById("btn-debug-level-plus1").addEventListener("click", () => {
     const candidates = [...state.treasureOrder, ...state.eventLevel.keys()];
     let added = 0;
