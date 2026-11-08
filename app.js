@@ -22,6 +22,8 @@
   const MEDAL_CODE_RE = /^Azuma_event_Medal(\d{2})$/;
   const LAST_QUEST_PASS_CODE = "Azuma_event_LastQuestPass";
   const ENDING_CODE = "Azuma_event_Ending";
+  // QRの読み取りの練習用。レベルは上がらず、レベルアップ動画だけが流れる。1人1回だけ使える
+  const DUMMY_CODE = "Azuma_event_level_dummy";
   const RECOVERY_DURATION_MS = 90 * 1000;
   const MEDAL_UNLOCK_LEVEL_STEP = 5; // レベル5ごとに勲章クエストを1つ受けられるようになる
 
@@ -86,6 +88,7 @@
       quizIntroPlayed: false,
       quizWon: false,
       eventEnding: false,
+      dummyUsed: false,
       recoveryEndsAt: null,
     };
   }
@@ -1806,6 +1809,18 @@
   }
 
   function handleQrCode(text) {
+    if (text === DUMMY_CODE) {
+      if (state.dummyUsed) {
+        showCameraMessage("このQRコードは　もう　つかったよ！");
+        return;
+      }
+      pauseScanBriefly();
+      state.dummyUsed = true; // 動画を流す前に使用済みにして保存（レベルは上がらない）
+      saveState();
+      feedback(200);
+      playLevelUp();
+      return;
+    }
     const levelMatch = text.match(LEVEL_CODE_RE);
     if (levelMatch) {
       const idx = parseInt(levelMatch[1], 10) - 1;
