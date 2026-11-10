@@ -276,6 +276,16 @@
   }
 
   function render() {
+    // Light版だけを見ているときは、Light版にない「青」「ピンク」のクエストの絞り込みを消す
+    const lightOnly = $("kind-filter").value === "light";
+    ["notq1", "notq3"].forEach((v) => {
+      const opt = $("filter").querySelector('option[value="' + v + '"]');
+      if (opt) {
+        opt.hidden = lightOnly;
+        opt.disabled = lightOnly;
+      }
+    });
+    if (lightOnly && /^notq[13]$/.test($("filter").value)) $("filter").value = "all";
     // まとめ
     const shown = players.filter(matchKind);
     const total = shown.length;
