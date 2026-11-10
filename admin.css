@@ -129,6 +129,8 @@ button, input, select { font: inherit; }
 .row.is-idle { border-color: var(--amber); }
 
 .c-name { grid-column: 1; font-weight: 700; font-size: 1.05rem; word-break: break-all; }
+.kind-badge { margin-left: 8px; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; background: rgba(255, 255, 255, 0.14); color: var(--soft); vertical-align: middle; }
+.kind-badge.light { background: #3fbf7f; color: #06301c; }
 .c-name small { margin-left: 6px; font-size: 0.72rem; font-weight: 400; color: var(--soft); }
 .c-seen { grid-column: 2; align-self: start; text-align: right; font-size: 0.78rem; color: var(--soft); white-space: nowrap; }
 .c-seen .dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: #6b7899; }

@@ -108,7 +108,7 @@
     const { data, error } = await client
       .from("players")
       .select(
-        "id,name,character,level_count,medal_count,last_quest_pass,quiz_won,ending_seen,restore_code,created_at,last_seen_at,eventLevel:state->eventLevel,eventMedal:state->eventMedal"
+        "id,name,character,level_count,medal_count,last_quest_pass,quiz_won,ending_seen,restore_code,created_at,last_seen_at,eventLevel:state->eventLevel,eventMedal:state->eventMedal,kind:state->>appKind"
       )
       .order("last_seen_at", { ascending: false })
       .limit(2000);
@@ -156,6 +156,25 @@
     return c === "braver" ? "ゆうしゃ" : c === "wizard" ? "まほうつかい" : "";
   }
 
+  // ---------- 通常版 / Light版 ----------
+  // Light版のアプリは、保存データ（state）に appKind:"light" を入れて送ってくる（入っていなければ通常版）。
+  // Light版：たからばこ10個、クエスト2つ（赤＝ガーゴイル、緑＝サーペント）。
+  function isLight(p) {
+    return p.kind === "light";
+  }
+  function maxLevelOf(p) {
+    return isLight(p) ? 10 : LEVEL_MAX;
+  }
+  function questSlotsOf(p) {
+    return isLight(p) ? [0, 2] : [0, 1, 2, 3];
+  }
+  function clearedOf(p, flags) {
+    return questSlotsOf(p).filter((i) => flags[i]).length;
+  }
+  function availableOf(p, flags) {
+    return Math.max(0, Math.min(questSlotsOf(p).length, Math.floor((p.level_count || 0) / 5)) - clearedOf(p, flags));
+  }
+
   function rowFor(p) {
     const st = stateOf(p);
     const row = el("div", "row" + (st.cleared ? " is-cleared" : "") + (st.active ? " is-active" : "") + (st.idle ? " is-idle" : ""));
@@ -163,6 +182,7 @@
     const name = el("div", "c-name", p.name || "（名前なし）");
     const small = el("small", "", charName(p.character));
     name.appendChild(small);
+    name.appendChild(el("span", "kind-badge" + (isLight(p) ? " light" : ""), isLight(p) ? "Light" : "通常"));
 
     const seen = el("div", "c-seen");
     seen.appendChild(el("span", "dot"));
@@ -171,10 +191,10 @@
     const level = el("div", "c-level");
     const bar = el("div", "bar");
     const fill = el("i");
-    fill.style.width = Math.min(100, (p.level_count / LEVEL_MAX) * 100) + "%";
+    fill.style.width = Math.min(100, (p.level_count / maxLevelOf(p)) * 100) + "%";
     bar.appendChild(fill);
     level.appendChild(bar);
-    level.appendChild(el("span", "lv", "Lv " + p.level_count + " / " + LEVEL_MAX));
+    level.appendChild(el("span", "lv", "Lv " + p.level_count + " / " + maxLevelOf(p)));
 
     const meta = el("div", "c-meta");
     meta.appendChild(el("span", "tag" + (p.last_quest_pass ? " on" : ""), "隠し通路"));
@@ -193,13 +213,13 @@
     const quests = el("div", "quests");
     quests.appendChild(el("span", "extra-label", "クエスト"));
     QUESTS.forEach((q, i) => {
+      if (!questSlotsOf(p).includes(i)) return;
       const b = el("span", "quest q" + i + (medalFlags[i] ? " on" : ""), q.color);
       b.title = q.monster + "（" + q.color + "）" + (medalFlags[i] ? "：クリア" : "：まだ");
       quests.appendChild(b);
     });
     // 受けられるクエスト数：レベル5ごとに1つ解放（最大4）－ クリア済みの数（アプリと同じ計算）
-    const cleared = medalFlags.filter(Boolean).length;
-    const available = Math.max(0, Math.min(4, Math.floor((p.level_count || 0) / 5)) - cleared);
+    const available = availableOf(p, medalFlags);
     const a = el("span", "quest-avail" + (available > 0 ? "" : " zero"), "受注可能 " + available + "件");
     a.title = "レベルが上がって、まだ挑戦していないクエストの数";
     quests.appendChild(a);
@@ -208,8 +228,8 @@
     const levels = Array.isArray(p.eventLevel) ? p.eventLevel : [];
     const foundCount = levels.filter(Boolean).length;
     const chests = el("div", "chests");
-    chests.appendChild(el("span", "extra-label", "宝箱 " + foundCount + " / " + LEVEL_MAX));
-    for (let n = 1; n <= LEVEL_MAX; n++) {
+    chests.appendChild(el("span", "extra-label", "宝箱 " + foundCount + " / " + maxLevelOf(p)));
+    for (let n = 1; n <= maxLevelOf(p); n++) {
       const c = el("span", "chest" + (levels[n - 1] ? " on" : ""), String(n));
       c.title = n + "番" + (levels[n - 1] ? "：見つけた" : "：まだ");
       chests.appendChild(c);
@@ -220,14 +240,24 @@
     return row;
   }
 
+  // 「通常版／Light版」の絞り込み
+  function matchKind(p) {
+    const k = $("kind-filter").value;
+    return k === "all" || (k === "light" ? isLight(p) : !isLight(p));
+  }
+
   function currentList() {
     const q = $("search").value.trim().toLowerCase();
     const filter = $("filter").value;
     let list = players.filter((p) => {
+      if (!matchKind(p)) return false;
       if (q && !(p.name || "").toLowerCase().includes(q)) return false;
       const mf = Array.isArray(p.eventMedal) ? p.eventMedal : [];
-      if (filter === "avail") return Math.min(4, Math.floor((p.level_count || 0) / 5)) - mf.filter(Boolean).length > 0;
-      if (/^notq[0-3]$/.test(filter)) return !mf[Number(filter.slice(4))];
+      if (filter === "avail") return availableOf(p, mf) > 0;
+      if (/^notq[0-3]$/.test(filter)) {
+        const qi = Number(filter.slice(4));
+        return questSlotsOf(p).includes(qi) && !mf[qi]; // Light版には、青・ピンクのクエストがない
+      }
       if (filter === "nopass") return !p.last_quest_pass;
       if (filter === "notboss") return !p.quiz_won;
       if (filter === "noend") return !p.ending_seen;
@@ -247,9 +277,10 @@
 
   function render() {
     // まとめ
-    const total = players.length;
+    const shown = players.filter(matchKind);
+    const total = shown.length;
     let active = 0, boss = 0, ending = 0, idle = 0, sum = 0;
-    players.forEach((p) => {
+    shown.forEach((p) => {
       const st = stateOf(p);
       if (st.active) active++;
       if (p.quiz_won) boss++;
@@ -276,19 +307,19 @@
     }
   }
 
-  ["search", "sort", "filter"].forEach((id) => $(id).addEventListener("input", render));
+  ["search", "sort", "filter", "kind-filter"].forEach((id) => $(id).addEventListener("input", render));
   $("btn-refresh").addEventListener("click", load);
 
   // ---------- CSV ----------
   $("btn-csv").addEventListener("click", () => {
-    const head = ["名前", "キャラ", "レベル", "勲章", "クリアしたクエスト", "見つけた宝箱", "隠し通路", "まおう", "エンディング", "引き継ぎコード", "開始日時", "最終アクセス"];
+    const head = ["版", "名前", "キャラ", "レベル", "勲章", "クリアしたクエスト", "見つけた宝箱", "隠し通路", "まおう", "エンディング", "引き継ぎコード", "開始日時", "最終アクセス"];
     const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
     const fmt = (iso) => new Date(iso).toLocaleString("ja-JP");
     const lines = [head.map(q).join(",")];
     currentList().forEach((p) => {
       lines.push(
         [
-          p.name, charName(p.character), p.level_count, p.medal_count,
+          isLight(p) ? "Light" : "通常", p.name, charName(p.character), p.level_count, p.medal_count,
           (Array.isArray(p.eventMedal) ? p.eventMedal : []).map((v, i) => (v ? QUESTS[i].color : "")).filter(Boolean).join("・"),
           (Array.isArray(p.eventLevel) ? p.eventLevel : []).map((v, i) => (v ? i + 1 : "")).filter(Boolean).join(" "),
           p.last_quest_pass ? "○" : "", p.quiz_won ? "○" : "", p.ending_seen ? "○" : "",
