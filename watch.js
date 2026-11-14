@@ -171,6 +171,19 @@
     return k === "all" || (k === "light" ? isLight(p) : !isLight(p));
   }
 
+  // クエストの進み具合（並べ替え用）。エンディング → まおう → 隠し通路 → 勲章の割合 → レベルの割合 の順に比べる。
+  // 割合で比べるので、通常版（勲章4つ・レベル20）とLight版（勲章2つ・レベル10）をまぜて並べられる。
+  function progressKey(p) {
+    const flags = Array.isArray(p.eventMedal) ? p.eventMedal : [];
+    const stage = p.ending_seen ? 3 : p.quiz_won ? 2 : p.last_quest_pass ? 1 : 0;
+    return [stage, clearedOf(p, flags) / questSlotsOf(p).length, (p.level_count || 0) / maxLevelOf(p)];
+  }
+  function byProgress(a, b) {
+    const ka = progressKey(a), kb = progressKey(b);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return kb[i] - ka[i];
+    return new Date(b.last_seen_at) - new Date(a.last_seen_at);
+  }
+
   function currentList() {
     const q = $("search").value.trim().toLowerCase();
     const filter = $("filter").value;
@@ -193,6 +206,7 @@
       seen: (a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at),
       level: (a, b) => b.level_count - a.level_count || b.medal_count - a.medal_count,
       levelAsc: (a, b) => a.level_count - b.level_count || a.medal_count - b.medal_count,
+      progress: byProgress,
       name: (a, b) => (a.name || "").localeCompare(b.name || "", "ja"),
       created: (a, b) => new Date(a.created_at) - new Date(b.created_at),
     }[sort];
