@@ -1381,7 +1381,7 @@
         .join("");
     }
     document.getElementById("btn-status-enter-bossroom").hidden = !(state.eventLastQuestPass && !state.quizWon);
-    // まおうを倒したら、まず「そんちょうへみせて」だけ表示。エンディングのQRを読んだあとに勲章とクリアを表示する
+    // まおうを倒したら、まず「かいちょうへみせて」だけ表示。エンディングのQRを読んだあとに勲章とクリアを表示する
     document.getElementById("status-boss-defeated-message").hidden = !(state.quizWon && !state.eventEnding);
     document.getElementById("status-boss-defeated-banner").hidden = !(state.quizWon && state.eventEnding);
     document.getElementById("status-key-reveal").hidden = !(state.keyRevealed && !state.quizWon);
