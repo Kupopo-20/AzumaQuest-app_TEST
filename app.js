@@ -1421,6 +1421,18 @@
     [img, echo1, echo2].forEach((el) => el.classList.remove("drop-in-play"));
     void img.offsetWidth; // reflow でアニメーションを再トリガー
     [img, echo1, echo2].forEach((el) => el.classList.add("drop-in-play"));
+    // 画面が小さいスマホ（iPhoneのSafariなど）では、カギの説明文が下のメニューに隠れることがある。
+    // 説明文がメニューの上に見える位置まで、画面を自動で下へ動かす。
+    setTimeout(scrollKeyMessageIntoView, 150);
+  }
+
+  function scrollKeyMessageIntoView() {
+    const screen = document.getElementById("screen-status");
+    const text = document.querySelector("#status-key-reveal .key-reveal-text");
+    if (!screen.classList.contains("active") || !text || text.offsetParent === null) return;
+    const navTop = bottomNav.classList.contains("visible") ? bottomNav.getBoundingClientRect().top : window.innerHeight;
+    const overflow = text.getBoundingClientRect().bottom + 16 - navTop;
+    if (overflow > 0) screen.scrollBy({ top: overflow, behavior: "smooth" });
   }
 
   // 落下クラスを付けたままだと、画面が display:none になって再表示されるたびに
