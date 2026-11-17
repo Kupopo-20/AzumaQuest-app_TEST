@@ -520,13 +520,15 @@ button {
   text-shadow: 2px 2px 0 #000;
 }
 .treasure-grid {
+  /* 5列にして、iPhoneのSafari（下にバーが出る）でも20個が1画面に収まるようにする */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px 10px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 4px;
   width: 100%;
   max-width: 420px;
-  margin-top: 12px;
+  margin-top: 6px;
 }
+#screen-treasure .dq-title { margin: 4px 0 8px; }
 .treasure-item {
   position: relative; /* 動く宝箱のキャンバスを、宝箱の上に重ねるため */
   display: flex;
@@ -535,13 +537,14 @@ button {
   gap: 2px;
 }
 .treasure-icon-img {
-  width: 68px;
-  height: 68px;
+  width: min(58px, 14.5vw);
+  height: min(58px, 14.5vw);
   object-fit: contain;
   filter: drop-shadow(2px 2px 0 #000);
 }
 .treasure-num {
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.1;
   font-weight: 700;
   color: var(--dq-white);
   text-shadow: 1px 1px 0 #000;
