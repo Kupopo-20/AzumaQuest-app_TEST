@@ -527,8 +527,11 @@ button {
   width: 100%;
   max-width: 420px;
   margin-top: 6px;
+  /* 縦に余裕があるスマホでは、見出しとメニューの間のまん中に置く（入りきらないときは上から並ぶ） */
+  margin-bottom: auto;
 }
 #screen-treasure .dq-title { margin: 4px 0 8px; }
+#screen-treasure .treasure-hint { margin-bottom: auto; }
 .treasure-item {
   position: relative; /* 動く宝箱のキャンバスを、宝箱の上に重ねるため */
   display: flex;
@@ -539,6 +542,9 @@ button {
 .treasure-icon-img {
   width: min(58px, 14.5vw);
   height: min(58px, 14.5vw);
+  /* 画面の高さに合わせて、入るところまで大きくする（最大68px） */
+  width: max(44px, min(68px, 17vw, calc((100dvh - 190px) / 4 - 28px)));
+  height: max(44px, min(68px, 17vw, calc((100dvh - 190px) / 4 - 28px)));
   object-fit: contain;
   filter: drop-shadow(2px 2px 0 #000);
 }
