@@ -88,6 +88,7 @@
     if (busy || !dirty) return;
     const c = await init();
     if (!c) return; // つながらない：dirty を残して、あとでやりなおす
+    if (await checkDeletedByAdmin()) return; // 運営に消されていたら、行をつくりなおさない
     busy = true;
     const snapshot = dirty;
     try {
@@ -160,6 +161,7 @@
   // 「いま遊んでいる」を知らせる（画面を開いている間だけ）
   async function heartbeat() {
     if (document.hidden) return;
+    if (await checkDeletedByAdmin()) return;
     if (dirty) return flush();
     if (!hasRow || busy) return;
     const c = await init();
@@ -232,8 +234,47 @@
     location.reload();
   }
 
+  // ---- 運営が1人分を「✕」で消したとき、そのスマホの中のデータも消す --------------------
+  // 運営が「✕」を押すと、サーバーに「このひきつぎコードの人は、消された」という記録が残る。
+  // スマホは、自分のひきつぎコードが「消された」記録にあるか調べる。あれば、スマホの中の進み具合を消して、最初からにする。
+  // （サーバーにこの仕組みがまだない・つながらないときは、何もしない）
+  async function isDeletedByAdmin() {
+    const code = getRestoreCode();
+    if (!code || !available()) return false;
+    const c = await init();
+    if (!c) return false;
+    try {
+      const res = await c.rpc("is_player_deleted", { p_code: code });
+      return !res.error && res.data === true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function checkDeletedByAdmin() {
+    if (resetting) return true;
+    if (!(await isDeletedByAdmin())) return false;
+    resetting = true;
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    dirty = null;
+    try {
+      localStorage.removeItem(STATE_STORAGE_KEY);
+      localStorage.removeItem(CODE_KEY);
+    } catch (e) {}
+    try {
+      const c = await init();
+      if (c) await c.auth.signOut({ scope: "local" });
+    } catch (e) {}
+    location.reload();
+    return true;
+  }
+
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && Date.now() - lastEpochCheck > EPOCH_CHECK_INTERVAL_MS) checkReset();
+    if (!document.hidden && Date.now() - lastEpochCheck > EPOCH_CHECK_INTERVAL_MS) {
+      checkReset();
+      checkDeletedByAdmin();
+    }
   });
 
   window.AzumaCloud = {
@@ -250,5 +291,8 @@
   };
 
   // アプリを開いたときに、先に接続しておく（匿名ログインまで済ませる）
-  init().then(() => checkReset());
+  init().then(async () => {
+    await checkReset();
+    if (!resetting) checkDeletedByAdmin();
+  });
 })();

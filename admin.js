@@ -363,8 +363,13 @@
 
   // ---------- 消す ----------
   async function deleteOne(p) {
-    if (!confirm((p.name || "（名前なし）") + " さんのデータを削除します。よろしいですか？\n（元に戻せません）")) return;
-    const { error } = await client.from("players").delete().eq("id", p.id);
+    if (!confirm((p.name || "（名前なし）") + " さんのデータを削除します。よろしいですか？\n（元に戻せません）\nその人のスマホも、次にアプリを開いたときに、最初からになります。")) return;
+    // 「消された」記録も残す関数で消す（スマホの中のデータも、次に開いたときに消える）
+    let { error } = await client.rpc("admin_delete_player", { p_id: p.id });
+    if (error && (error.code === "PGRST202" || /Could not find the function|does not exist/i.test(error.message || ""))) {
+      // サーバーに、この関数がまだないとき：今までどおり、サーバーの記録だけを消す
+      ({ error } = await client.from("players").delete().eq("id", p.id));
+    }
     if (error) {
       alert("削除できませんでした。\n原因：" + (error.message || error.code || "不明"));
       return;
