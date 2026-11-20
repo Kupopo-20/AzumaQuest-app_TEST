@@ -24,7 +24,7 @@
   const ENDING_CODE = "Azuma_event_Ending";
   // QRの読み取りの練習用。レベルは上がらず、レベルアップ動画だけが流れる。1人1回だけ使える
   const DUMMY_CODE = "Azuma_event_level_dummy";
-  const RECOVERY_DURATION_MS = 60 * 1000;
+  const RECOVERY_DURATION_MS = 30 * 1000;
   const MEDAL_UNLOCK_LEVEL_STEP = 5; // レベル5ごとに勲章クエストを1つ受けられるようになる
 
   // レベル5で1つ、10で2つ、15で3つ、20で4つ、というように
